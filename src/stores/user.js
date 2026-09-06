@@ -1,25 +1,25 @@
-import { ref } from 'vue'
-import { defineStore } from 'pinia'
-import { fetchUser, saveUser } from '../services/api'
+import { ref } from "vue";
+import { defineStore } from "pinia";
+import { fetchUser, saveUser } from "../services/api";
 
-export const useUserStore = defineStore('user', () => {
-  const user = ref(null)
-  const loading = ref(false)
+export const useUserStore = defineStore("user", () => {
+  const user = ref(null);
+  const loading = ref(false);
 
   const load = async () => {
-    loading.value = true
+    loading.value = true;
     try {
-      user.value = await fetchUser()
+      user.value = await fetchUser();
     } catch (e) {
-      console.log(e)
+      console.log(e);
     }
-    loading.value = false
-  }
+    loading.value = false;
+  };
 
   const save = async (data) => {
-    user.value = await saveUser(data)
-    alert('Sparat!')
-  }
+    user.value = await saveUser(data);
+    alert("Sparat!");
+  };
 
-  return { user, loading, load, save }
-})
+  return { user, loading, load, save };
+});
