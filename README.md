@@ -1,3 +1,5 @@
+[![CI](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml/badge.svg)](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml)
+
 # kraftly-portal
 
 Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
