@@ -1,6 +1,6 @@
 # Beslut: verktyg för E2E-tester
 
-**Datum:** 2026-08-28   2026-08-31-08    2026-09-01
+**Datum:** 2026-08-28 2026-08-31-08 2026-09-01
 **Beslut:** Vi använder **Playwright** för end-to-end-tester.
 
 ## Bakgrund

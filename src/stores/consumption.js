@@ -1,16 +1,16 @@
-import { ref } from 'vue'
-import { defineStore } from 'pinia'
-import { fetchConsumption } from '../services/api'
+import { ref } from "vue";
+import { defineStore } from "pinia";
+import { fetchConsumption } from "../services/api";
 
-export const useConsumptionStore = defineStore('consumption', () => {
-  const data = ref(null)
-  const loading = ref(false)
+export const useConsumptionStore = defineStore("consumption", () => {
+  const data = ref(null);
+  const loading = ref(false);
 
   const load = async () => {
-    loading.value = true
-    data.value = await fetchConsumption()
-    loading.value = false
-  }
+    loading.value = true;
+    data.value = await fetchConsumption();
+    loading.value = false;
+  };
 
-  return { data, loading, load }
-})
+  return { data, loading, load };
+});
