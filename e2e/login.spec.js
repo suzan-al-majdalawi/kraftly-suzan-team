@@ -9,5 +9,5 @@ test("Här kan användaren logga in på systemet", async ({ page }) => {
   await page.getByRole("button", { name: "Logga in" }).click();
 
   await expect(page).toHaveURL("http://localhost:5173/");
-  await expect(page.getByText("Mina uppgifter")).toBeVisible();
+  await expect(page.getByText("DETTA FINNS INTE")).toBeVisible();
 });
