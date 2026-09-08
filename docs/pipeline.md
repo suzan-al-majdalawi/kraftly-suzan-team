@@ -3,7 +3,7 @@
 ## Flöde
 
 skiss with draw.io
-![alt text](Flowchart-diagram-ci.drawio.png)
+![alt text](img/Flowchart-diagram-ci.drawio.png)
 
 ```mermaid
 flowchart LR
@@ -109,12 +109,12 @@ Med cache:
 
 ## Skärmdump: låst merge-knapp
 
-(img/14.png)
+[låst merge-knapp](img/14.png)
 
 ### först så här och sen lös test med Requierd
 
-(img/11.png)
-(img/12.png)
-(img/13.png)
-(img/14.png)
-(img/15.png)
+[skärmbild.1](img/11.png)
+[skärmbild.2](img/12.png)
+[skärmbild.3](img/13.png)
+[låst merge-knapp](img/14.png)
+[skärmbild.5](img/15.png)
