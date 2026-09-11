@@ -244,30 +244,50 @@ kunna ge `404 Not Found`.
 
 ## CI
 
-Docker-builden körs som ett eget jobb i GitHub Actions.
+Docker-builden körs som ett eget jobb med namnet `image` i GitHub Actions-workflowen `.github/workflows/ci.yml`.
 
-CI bygger imagen med:
-
-```bash
-docker build -t suzan-team-frontend:ci .
-```
-
-Efter builden visas imagen och dess storlek med:
+CI bygger frontend-imagen med:
 
 ```bash
-docker image ls suzan-team-frontend:ci
+docker build -t kraftly-suzan-team-web:ci .
 ```
 
-På detta sätt kontrolleras både att Docker-imagen kan byggas och vilken storlek den får.
-Docker-builden är separerad från övriga kontroller i CI och fungerar som en egen kontroll inför merge.
+Efter builden visas imagen och dess storlek i CI-loggen med:
 
+```bash
+docker image ls kraftly-suzan-team-web:ci
+```
+
+CI-flödet för Docker är:
+
+```text
+Checkout
+   |
+   v
+docker build
+   |
+   v
+kraftly-suzan-team-web:ci
+   |
+   v
+docker image ls
+   |
+   v
+Job klart
+```
+
+Docker-builden är separerad från övriga kontroller i CI och fungerar som ett eget jobb inför merge.
+![CI-Docker Github - Image mindre nu 55.1MB ](img/image-summary-size-55.1MB_github.png)
+![All checks CI image-verify-build och test grön](img/all-grön.png)
+
+CI behöver inte köra `docker compose up --build`. Compose används för lokal testning av hela miljön, medan CI-jobbet `image` kontrollerar att frontend-imagen kan byggas och visar dess storlek.
 ---
 
 ## Docker Compose
 
 Den lokala miljön definieras i `compose.yaml`.
 
-Frontend:
+### Frontend
 
 ```yaml
 web:
@@ -278,7 +298,7 @@ web:
     - api
 ```
 
-Mock-API:
+### Mock-API
 
 ```yaml
 api:
@@ -290,6 +310,11 @@ api:
 ```
 
 Frontend-containern publicerar Nginx på port `8080` på hosten. API-containern publicerar port `4000`.
+Docker Compose används lokalt för att starta båda services tillsammans:
+
+```bash
+docker compose up --build
+```
 
 ---
 
@@ -306,6 +331,8 @@ Frontend-containern publicerar Nginx på port `8080` på hosten. API-containern 
 - Den lokala Vite-proxyn används under utveckling, medan Nginx-proxyn används i Docker-miljön.
 - Docker-miljön ersätter inte en fullständig produktionsmiljö med exempelvis riktig databas, persistent lagring och produktions-API.
 
+---
+
 ## M3 – Containerkrav
 
 Följande containerkrav är uppfyllda eller dokumenterade:
@@ -317,6 +344,8 @@ Följande containerkrav är uppfyllda eller dokumenterade:
 - Docker-imagen för frontend är uppmätt till **87.1 MB DISK USAGE**, vilket är under kravet på 100 MB.
 - Docker Compose startar frontend och mock-API.
 - Frontend nås via `http://localhost:8080`.
-- Docker-builden körs som ett eget jobb i CI.
+- Login och dashboard kan testas i Docker-miljön.
+- Docker-builden körs som ett eget CI-jobb med namnet `image`.
+- CI-loggen visar Docker-imagens storlek.
 - Mock-API:t körs som en separat Docker Compose-service.
 - Kommunikation mellan Nginx och mock-API sker via Docker Compose-servicen `api`.
