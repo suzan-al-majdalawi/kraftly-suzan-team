@@ -1,12 +1,12 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-// config from a starter template, seems to work /M
 export default defineConfig({
   plugins: [vue()],
-
   test: {
-    include: ["src/**/*.test.js"],
+    globals: true, // krävs för att Testing Library ska städa DOM:en mellan tester
     environment: "jsdom",
+    setupFiles: ["./tests/setup.js"],
   },
+  server: { proxy: { "/api": "http://localhost:4000" } },
 });

@@ -1,63 +1,111 @@
+# kraftly-mina-sidor
+
+Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
+
 [![CI](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml/badge.svg)](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml)
 
-# kraftly-portal
-
-Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
-
 ## Getting started
 
-    npm install
-    npm start
+### Alternativ 1 – Docker
 
-TODO: write proper documentation
+Det rekommenderade sättet att starta projektet är med Docker Compose.
 
-# kraftly-mina-sidor
+1. Öppna Docker Desktop och kontrollera att Docker körs.
+2. Öppna terminalen i projektets rotmapp.
+3. Kör:
 
-# kraftly-portal
+```bash
+docker compose up --build
+```
 
-Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
+# Öppna sedan:
 
-## Getting started
+[http://localhost:8080](http://localhost:8080)
+Frontend körs via nginx och mock API:t körs i en separat container.
 
-    npm install
-    npm start
+# att stoppa containrarna:
 
-# kraftly-mina-sidor
+```bash
+docker compose down
+```
 
-# Arbetsavtal
+#att vissa images i containrarna:
 
-TODO: write proper documentation
+```bash
+docker image ls
+```
+
+### Alternativ 2 – utan Docker
+
+Installera projektets dependencies:
+
+```bash
+npm install
+```
+
+Starta mock API:t:
+
+```bash
+npm run api
+```
+
+Starta utvecklingsservern:
+
+```bash
+npm run dev
+```
+
+Öppna sedan:
+[http://localhost:5173](http://localhost:5173)
+
+I utvecklingsläge proxas `/api` till mock API:t på port 4000.
+
+## Arbetsavtal
 
 ## Kommunikation
 
-vi kommer att fokusera på fixa problemet om behöver hjälp fråga och söka efter problemet.
+Vi fokuserar på att lösa problemen tillsammans. Om någon behöver hjälp frågar vi i teamets kommunikationskanal och söker efter problemet tillsammans.
 
 ## Mötestider
 
-Om behöves fråga i Slack eller annan
+Vid behov frågar vi i Slack eller annan överenskommen kommunikationskanal.
 
 ## Definition of done för PR:er
 
--Vilket ticket eller issues?
--Vad ändrades?
--Varför?
--Hur testar man?
--Checklista:
-Jag har kört appen och sett att buggen är borta
-Commit-meddelandet följer conventional commits
-Grenen utgår från färskt
-Ticketets "Klar när" -punkter är avbockade
+- Vilket ticket eller issue?
+- Vad ändrades?
+- Varför?
+- Hur testar man?
+- Checklista:
+  - Jag har kört appen och verifierat ändringen.
+  - Commit-meddelandet följer Conventional Commits.
+  - Grenen utgår från en färsk `main`.
+  - Ticketets "Klar när"-punkter är avbockade.
 
 ## Tech lead-schema för rotationen
 
-vecka 1-9
+Vecka 1–9.
 
 ## Git
 
-Vi använder kortlivade funktionsgrenar.
-Alla ändringar i main går igenom en PR.
-Minst en teammedlem måste granska PR:n.
+Vi använder kortlivade feature branches.
+Alla ändringar i `main` går igenom en Pull Request.
+Minst en teammedlem måste granska PR:n innan merge.
 
 ## Commits
 
-Vi använder Commits på värje PR.
+Vi använder Conventional Commits på varje PR.
+
+### Varför detta löser M3
+
+Det viktiga är att README nu visar:
+
+- 🐳 **Docker-vägen:** `docker compose up --build` eller `docker compose up -d`
+- 🐳 **Stop-Docker-vägen:** `docker compose down`
+- 🌐 Frontend: `localhost:8080`
+- 🧪 **Utan Docker:** `npm install` + `npm run dev`
+- ❌ Den gamla `npm start` är borta
+- ❌ `TODO: write proper documentation` är borta
+- ❌ Dubbla `kraftly-portal`-rubriker är borta
+- ✅ CI-badge finns kvar
+- ✅ Projektets Git/PR-regler finns kvar

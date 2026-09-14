@@ -39,3 +39,15 @@ jobs:
         with:
           name: dist
           path: dist
+
+  image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t kraftly-suzan-team-web:ci .
+
+      - name: Show image size
+        run: docker image ls kraftly-suzan-team-web:ci
