@@ -10,12 +10,12 @@ Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
 
 Det rekommenderade sättet att starta projektet är med Docker Compose.
 
-Bygg och starta frontend och mock API ,Kör med en från dem 2 pga.samma kommand:
+1. Öppna Docker Desktop och kontrollera att Docker körs.
+2. Öppna terminalen i projektets rotmapp.
+3. Kör:
 
 ```bash
 docker compose up --build
-
-docker compose up -d
 ```
 
 # Öppna sedan:
@@ -41,6 +41,12 @@ Installera projektets dependencies:
 
 ```bash
 npm install
+```
+
+Starta mock API:t:
+
+```bash
+npm run api
 ```
 
 Starta utvecklingsservern:
