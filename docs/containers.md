@@ -60,7 +60,7 @@ Mock-API (Node + Express)
 
 ---
 
-## Image-storlek
+## Images
 
 Vi mätte Docker-imagernas storlek lokalt med:
 
@@ -74,10 +74,10 @@ docker image ls
 
 Vi jämförde en naiv build med vår multi-stage-build.
 
-| Image                           | Build             | DISK USAGE |
-| ------------------------------- | ----------------- | ---------: |
-| `kraftly-suzan-team-api:web`    | Naiv build        |    1.64 GB |
-| `kraftly-suzan-team-web:latest` | Multi-stage build |    87.1 MB |
+| Image                           | Build             | DISK USAGE | Byggtid (utan cache) | Byggtid(kodändring) |
+| ------------------------------- | ----------------- | ---------: | -------------------: | ------------------: |
+| `kraftly-suzan-team-api:latest` | Naiv build        |    1.64 GB |                    – |                   – |
+| `kraftly-suzan-team-web:latest` | Multi-stage build |    87.1 MB |               33,8 s |               3,9 s |
 
 **DISK USAGE** är den storlekskolumn som används för M3:s krav.
 
@@ -218,6 +218,11 @@ server: {
 ```
 
 På så sätt kan frontend anropa `/api` relativt och samma API-prefix kan användas både vid lokal utveckling och via Nginx i Docker.
+
+### När appen flyttas från localhost till staging eller molnet
+
+Vi valde proxy via Nginx och relativa `/api`-anrop. När appen flyttas från localhost till staging eller en molnmiljö behöver frontend därför inte ändra API-adress. Webbläsaren fortsätter att anropa `/api`, medan Nginx eller en reverse proxy i den nya miljön skickar anropen vidare till rätt API. Det gör att frontend inte är beroende av `localhost`.
+
 ---
 
 ## SPA-fallback med Nginx
@@ -242,7 +247,7 @@ http://localhost:8080/fakturor
 kunna ge `404 Not Found`.
 ---
 
-## CI
+## Vad som körs i CI
 
 Docker-builden körs som ett eget jobb med namnet `image` i GitHub Actions-workflowen `.github/workflows/ci.yml`.
 
@@ -320,14 +325,14 @@ docker compose up --build
 
 ## Kända begränsningar
 
+## Kända begränsningar
+
 - Mock-API:t är endast avsett för utveckling och testning.
 - Mock-API:t är inte ett produktions-API.
-- Mock-API:t använder ingen riktig produktionsdatabas.
 - Ingen persistent produktionsdata används.
 - Docker Compose-konfigurationen är främst avsedd för lokal utveckling och CI.
-- Frontend-imagen använder Nginx för att servera statiska, färdigbyggda filer.
-- Node.js och byggmiljön finns inte i den slutliga multi-stage-imagen.
-- API:t körs som en separat Node.js-container eftersom mock-API:t inte behöver byggas till statiska filer.
+- Frontend-imagen innehåller endast Nginx och färdigbyggda frontend-filer.
+- Node.js och `node_modules` finns inte i den slutliga frontend-imagen.
 - Den lokala Vite-proxyn används under utveckling, medan Nginx-proxyn används i Docker-miljön.
 - Docker-miljön ersätter inte en fullständig produktionsmiljö med exempelvis riktig databas, persistent lagring och produktions-API.
 
