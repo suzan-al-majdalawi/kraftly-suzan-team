@@ -1,15 +1,62 @@
 // Simple mock of Kraftly's API. Built for the demo -- NOT for production.
 // Webbmakarna AB / M & J
+
 const express = require("express");
 const app = express();
+const port = process.env.PORT || 4000;
+
 app.use(express.json());
+
+// Läs .env lokalt om filen finns
+if (typeof process.loadEnvFile === "function") {
+  try {
+    process.loadEnvFile();
+  } catch {
+    console.error("Failed to load .env file");
+  }
+}
 
 // CORS -- opens everything so it just works
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "*");
   res.header("Access-Control-Allow-Methods", "*");
+
   if (req.method === "OPTIONS") return res.sendStatus(200);
+
+  next();
+});
+
+// Health check – ska fungera utan API-key
+app.get("/healthz", (req, res) => {
+  res.json({ ok: true });
+});
+
+// API keys från environment
+const configuredKeys = new Set(
+  (process.env.API_KEYS || process.env.API_KEY || "")
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean),
+);
+
+if (configuredKeys.size === 0) {
+  console.error("API_KEY eller API_KEYS saknas");
+  process.exit(1);
+}
+
+// API-key krävs för alla /api-anrop
+app.use("/api", (req, res, next) => {
+  const key = req.get("X-Api-Key");
+
+  if (!key || !configuredKeys.has(key)) {
+    console.error(
+      `API auth failed: ${req.method} ${req.originalUrl} from ${req.ip}`,
+    );
+
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   next();
 });
 
@@ -87,7 +134,7 @@ const consumption = {
   pricePerKwh: 1.42,
 };
 
-// anyone gets in, we'll add real auth later(TM)
+// Login
 app.post("/api/login", (req, res) => {
   res.json({ token: "fake-token-123", name: user.name });
 });
@@ -102,7 +149,8 @@ app.get("/api/consumption", (req, res) => {
 app.get("/api/invoices", (req, res) => res.json(invoices));
 
 app.post("/api/move", (req, res) => {
-  console.log("Move request:", req.body);
+  console.error("Move request:", req.body);
+
   res.json({
     ok: true,
     ref: "FLYTT-" + Math.floor(Math.random() * 90000 + 10000),
@@ -114,4 +162,6 @@ app.put("/api/user", (req, res) => {
   res.json(user);
 });
 
-app.listen(4000, () => console.log("Mock API on http://localhost:4000"));
+app.listen(port, () => {
+  console.error(`Mock API on http://localhost:${port}`);
+});
