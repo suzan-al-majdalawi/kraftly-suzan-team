@@ -2,6 +2,10 @@
 
 Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
 
+## Efter Deployes with render:
+
+https://kraftly-suzan-team-staging.onrender.com/login
+
 [![CI](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml/badge.svg)](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml)
 
 ## Getting started
