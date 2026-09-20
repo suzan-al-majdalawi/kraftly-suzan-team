@@ -29,6 +29,8 @@ jobs:
         run: echo "API_KEY=e2e-testnyckel" > .env
 
       - name: Start application
+        env:
+          API_KEY: e2e-testnyckel
         run: docker compose up -d --build
 
       - name: Run Playwright tests
