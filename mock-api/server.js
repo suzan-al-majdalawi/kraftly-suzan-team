@@ -1,10 +1,53 @@
 // Simple mock of Kraftly's API. Built for the demo -- NOT for production.
 // Webbmakarna AB / M & J
 const express = require("express");
+// Konfiguration kommer från miljön. Lokalt läses .env (om den finns).
+try {
+  process.loadEnvFile();
+} catch {
+  // ingen .env – helt normalt i en container
+}
+
+// VITE_API_KEYS = flera klienter, en nyckel var: "VITE_API_KEYS=suzan-team:abc123,client:xyz789"
+// VITE_API_KEY  = en enda nyckel (det räcker lokalt)
+const keys = new Map(
+  (
+    process.env.VITE_API_KEYS ||
+    (process.env.VITE_API_KEY ? `lokal:${process.env.VITE_API_KEY}` : "")
+  )
+    .split(",")
+    .map((entry) => entry.trim())
+    .map((entry) => [
+      entry.slice(0, entry.indexOf(":")),
+      entry.slice(entry.indexOf(":") + 1),
+    ])
+    .filter(([name, key]) => name && key)
+    .map(([name, key]) => [key, name]),
+);
+if (keys.size === 0) {
+  console.error(
+    "VITE_API_KEY saknas. Lokalt: kopiera .env.example till .env. I molnet: sätt variabeln hos plattformen.",
+  );
+  process.exit(1);
+}
+
 const app = express();
 app.use(express.json());
 
 // CORS -- opens everything so it just works
+// Varje anrop till /api måste ha en giltig nyckel
+app.use("/api", (req, res, next) => {
+  const client = keys.get(req.get("X-Api-Key"));
+  if (!client) {
+    console.log(
+      `401 ${req.method} ${req.originalUrl} – saknad eller ogiltig nyckel`,
+    );
+    return res.status(401).json({ error: "Saknad eller ogiltig API-nyckel" });
+  }
+  console.log(`[${client}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "*");
@@ -114,4 +157,11 @@ app.put("/api/user", (req, res) => {
   res.json(user);
 });
 
-app.listen(4000, () => console.log("Mock API on http://localhost:4000"));
+app.get("/healthz", (req, res) => {
+  res.status(200).send("Congratulations :) Health check OK");
+});
+
+const port = process.env.PORT || 4000;
+app.listen(port, () =>
+  console.log(`Mock API on port ${port} – ${keys.size} nyckel/nycklar laddade`),
+);

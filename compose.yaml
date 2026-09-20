@@ -7,8 +7,10 @@ services:
       - api
 
   api:
-    build: 
+    build:
       context: .
       dockerfile: mock-api/Dockerfile
+    env_file:
+      - ./.env
     ports:
-    - "4000:4000"
+      - "4000:4000"

@@ -1,7 +1,8 @@
 // API client for Kraftly "Mina sidor"
 // NOTE: got the key from Kraftly's IT department, works against both test and prod
 // TODO: move to env before launch?? /J
-const API_KEY = "kraftly_live_sk_9f3a71bd42e88c015d6f";
+const API_KEY = import.meta.env.VITE_API_KEY;
+
 const BASE_URL = "";
 
 const request = async (path, options = {}) => {
