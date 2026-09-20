@@ -27,13 +27,13 @@ jobs:
 
       - name: Start application
         env:
-          API_KEY: e2e-testnyckel
+          VITE_API_KEY: e2e-testnyckel
         run: docker compose up -d --build
 
       - name: Run Playwright tests
         env:
           E2E_SERVER: preview
-          API_KEY: e2e-testnyckel
+          VITE_API_KEY: e2e-testnyckel
         run: npx playwright test
 
       - uses: actions/upload-artifact@v4
