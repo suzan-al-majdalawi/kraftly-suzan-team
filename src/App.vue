@@ -1,4 +1,7 @@
 <template>
+  <div v-if="appEnv !== 'production'" class="env-banner">
+    {{ appEnv.toUpperCase() }}
+  </div>
   <div>
     <header v-if="$route.path !== '/login'" class="topbar">
       <div class="topbar-inner container">
@@ -22,6 +25,8 @@
 import { useRouter } from "vue-router";
 
 const router = useRouter();
+// Sätts av containern vid start (public/config.js lokalt). Syns i alla miljöer utom prod.
+const appEnv = window.__KRAFTLY__?.env ?? "lokal";
 
 const logout = () => {
   localStorage.removeItem("kraftly_logged_in");
@@ -54,5 +59,15 @@ const logout = () => {
 .topbar nav a.router-link-active {
   color: #fff;
   font-weight: 600;
+}
+.env-banner {
+  background: #f5a524;
+  color: #101d3d;
+  font:
+    600 12px/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 5px 0;
 }
 </style>
