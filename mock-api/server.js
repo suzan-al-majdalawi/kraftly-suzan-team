@@ -2,33 +2,18 @@
 // Webbmakarna AB / M & J
 
 const express = require("express");
-const app = express();
 
-// Läs .env lokalt om filen finns.
-// Node 22 krävs för process.loadEnvFile().
+// Load .env locally if the file exists.
+// Environment variables provided by Docker/CI are used otherwise.
 try {
   process.loadEnvFile();
 } catch {
-  // Ingen .env – normalt i container/CI om miljövariabler redan finns.
+  // No .env file – normal in a container or CI environment.
 }
 
-app.use(express.json());
-
-// CORS
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "*");
-  res.header("Access-Control-Allow-Methods", "*");
-
-  if (req.method === "OPTIONS") return res.sendStatus(200);
-
-  next();
-});
-
-// API-nycklar.
-// Lokalt räcker API_KEY.
-// API_KEYS kan användas för flera klienter:
-// "volt:abc123,ampere:def456"
+// API_KEYS = multiple clients, one key each.
+// Example: "suzan-team:abc123,client:xyz789"
+// API_KEY = one key, enough for local development.
 const keys = new Map(
   (
     process.env.API_KEYS ||
@@ -46,28 +31,42 @@ const keys = new Map(
 
 if (keys.size === 0) {
   console.error(
-    "API_KEY eller API_KEYS saknas. Lokalt: kopiera .env.example till .env.",
+    "API_KEY or API_KEYS is missing. Locally: copy .env.example to .env. In the cloud: set the variable on the platform.",
   );
   process.exit(1);
 }
 
-// Publik health check.
-// Den ska INTE kräva API-nyckel.
-app.get("/healthz", (req, res) => {
-  res.json({ ok: true });
+const app = express();
+
+app.use(express.json());
+
+// CORS -- opens everything so it just works.
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Methods", "*");
+
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+
+  next();
 });
 
-// Alla /api-anrop kräver giltig API-nyckel.
+// Health check does not require an API key.
+app.get("/healthz", (req, res) => {
+  res.status(200).send("Congratulations :) Health check OK");
+});
+
+// Every /api request requires a valid API key.
 app.use("/api", (req, res, next) => {
   const client = keys.get(req.get("X-Api-Key"));
 
   if (!client) {
     console.log(
-      `401 ${req.method} ${req.originalUrl} – saknad eller ogiltig nyckel`,
+      `401 ${req.method} ${req.originalUrl} – missing or invalid API key`,
     );
 
     return res.status(401).json({
-      error: "Saknad eller ogiltig API-nyckel",
+      error: "Missing or invalid API key",
     });
   }
 
@@ -182,10 +181,7 @@ app.put("/api/user", (req, res) => {
   res.json(user);
 });
 
-// Plattformen bestämmer PORT.
-// Lokalt används 4000.
 const port = process.env.PORT || 4000;
-
-app.listen(port, () => {
-  console.log(`Mock API on port ${port} – ${keys.size} nyckel/nycklar laddade`);
-});
+app.listen(port, () =>
+  console.log(`Mock API on port ${port} – ${keys.size} nyckel/nycklar laddade`),
+);

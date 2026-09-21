@@ -1,4 +1,7 @@
 // API client for Kraftly "Mina sidor"
+// NOTE: got the key from Kraftly's IT department, works against both test and prod
+// TODO: move to env before launch?? /J
+const API_KEY = import.meta.env.VITE_API_KEY;
 //
 // Ingen nyckel här. Allt i frontendkoden hamnar i JavaScript-filen som browsern laddar
 // ner – en nyckel här är publik för alla som trycker F12. Appen anropar /api relativt.
@@ -11,6 +14,7 @@ const request = async (path, options = {}) => {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "X-Api-Key": API_KEY,
       ...options.headers,
     },
   });
