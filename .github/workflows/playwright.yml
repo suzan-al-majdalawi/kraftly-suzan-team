@@ -11,6 +11,9 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
+    env:
+      API_KEY: e2e-testnyckel
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,8 +29,6 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Start application
-        env:
-          API_KEY: e2e-testnyckel
         run: docker compose up -d --build
 
       - name: Check application
@@ -39,7 +40,6 @@ jobs:
       - name: Run Playwright tests
         env:
           E2E_SERVER: preview
-          API_KEY: e2e-testnyckel
           FEATURE_NORWAY: true
         run: npx playwright test
 
