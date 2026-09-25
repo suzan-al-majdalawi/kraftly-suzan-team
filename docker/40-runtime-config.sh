@@ -10,7 +10,9 @@
 set -eu
 
 cat > /usr/share/nginx/html/config.js <<CONF
-window.__KRAFTLY__ = { env: '${APP_ENV:-lokal}' }
+window.__KRAFTLY__ = { 
+  env: '${APP_ENV:-lokal}',
+  features: { norway: ${NORWAY} } }
 CONF
 
 echo "runtime-config: APP_ENV=${APP_ENV:-lokal} FEATURE_NORWAY=${NORWAY}"
