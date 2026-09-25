@@ -1,6 +1,3 @@
-#Viktga # Fix: Scriptet måste använda LF-radslut och vara executable för att nginx
-# ska kunna köra det från /docker-entrypoint.d/ vid containerstart.
-
 #!/bin/sh
 # Körs av nginx-imagen när containern startar (allt i /docker-entrypoint.d/ körs före nginx).
 # Skriver config.js från miljövariabler – samma image får olika konfiguration i
