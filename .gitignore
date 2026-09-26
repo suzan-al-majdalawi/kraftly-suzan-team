@@ -1,7 +1,7 @@
 node_modules
 dist
 .DS_Store
-test-results/
-playwright-report/
+
+# Hemligheter och lokal konfiguration – aldrig i repot
 .env
 .env.local
