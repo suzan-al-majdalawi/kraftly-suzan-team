@@ -5,24 +5,34 @@
       <p style="margin-bottom: 14px">
         Fyll i uppgifterna nedan så flyttar vi ditt elavtal.
       </p>
-      <input type="text" placeholder="Ny adress" v-model="form.address" />
-      <input type="text" placeholder="Postnummer" v-model="form.zip" />
-      <input type="text" placeholder="Ort" v-model="form.city" />
+
+      <input v-model="form.address" type="text" placeholder="Ny adress" />
+      <input v-model="form.zip" type="text" placeholder="Postnummer" />
+      <input v-model="form.city" type="text" placeholder="Ort" />
       <input
+        v-model="form.date"
         type="text"
         placeholder="Inflyttningsdatum (ÅÅÅÅ-MM-DD)"
-        v-model="form.date"
       />
+
       <select v-model="form.contract">
         <option disabled value="">Välj avtal</option>
         <option>Rörligt pris</option>
         <option>Fast pris 1 år</option>
         <option>Fast pris 3 år</option>
       </select>
+
+      <!-- Visar ett felmeddelande om något obligatoriskt fält saknas -->
+      <p v-if="error" style="color: #d92d20; margin-top: 10px">
+        {{ error }}
+      </p>
+
       <BaseButton @click="submit">Skicka flyttanmälan</BaseButton>
+
       <p class="hint" style="margin-top: 8px">
         Anmälan måste göras senast 14 dagar före flytt
       </p>
+
       <p v-if="reference" style="color: #12b76a; margin-top: 10px">
         Tack! Referensnummer: {{ reference }}
       </p>
@@ -42,10 +52,26 @@ const form = reactive({
   date: "",
   contract: "",
 });
+
 const reference = ref(null);
+const error = ref("");
 
 const submit = async () => {
-  // TODO validation
+  // Validera formuläret innan vi skickar något till API:t.
+  // Ett tomt formulär ska inte kunna skickas.
+  error.value = "";
+
+  if (
+    !form.address.trim() ||
+    !form.zip.trim() ||
+    !form.city.trim() ||
+    !form.date.trim() ||
+    !form.contract
+  ) {
+    error.value = "Fyll i alla uppgifter innan du skickar flyttanmälan.";
+    return;
+  }
+
   const res = await submitMove(form);
   reference.value = res.ref;
 };
