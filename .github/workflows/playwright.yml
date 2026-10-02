@@ -1,3 +1,4 @@
+
 name: Playwright Tests
 
 on:
@@ -29,12 +30,27 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Start application
-        env:
-          API_KEY: e2e-testnyckel
         run: docker compose up -d --build
 
+      - name: Wait for application
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/login >/dev/null; then
+              echo "Application is ready"
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Application did not start on port 8080"
+          docker compose ps
+          docker compose logs
+          exit 1
+
       - name: Check application
-        run:
+        if: always()
+        run: |
           docker compose ps
           docker compose logs
 
@@ -42,8 +58,12 @@ jobs:
         env:
           E2E_SERVER: preview
           API_KEY: e2e-testnyckel
-          FEATURE_NORWAY: true
+          FEATURE_NORWAY: "true"
         run: npx playwright test
+
+      - name: Stop application
+        if: always()
+        run: docker compose down
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
