@@ -289,3 +289,46 @@ Därför använder vi resultaten för att förstå applikationens beteende och i
 
 För att kunna bedöma produktionskapaciteten behöver vi längre tester och mätningar från den faktiska driftmiljön, särskilt för backend-API:t.
 ````
+
+## Identifierad flaskhals och åtgärd
+
+### Flaskhals
+
+Den tydligaste begränsningen i våra tester är inte den statiska frontendens kapacitet. De statiska anropen klarade över 42 000 req/s lokalt.
+
+API-anropet `/api/user` hade däremot betydligt lägre genomströmning:
+
+- cirka **2 141 req/s**
+- p99 latency **50 ms**
+- genomsnittlig latency **22,83 ms**
+- maximal latency **154 ms**
+
+Det är därför API-lagret som är den mest relevanta delen att följa vid fortsatt belastning.
+
+Staging-testet gav cirka **204 req/s** med p99 på **68 ms**, vilket visar att nätverk och hostingmiljö påverkar resultatet jämfört med lokal Docker.
+
+### Åtgärd
+
+För M5 har vi fokuserat på att minska onödig belastning från statiska resurser genom cache-headers.
+
+Hashade assets kan cachas länge:
+
+```http
+Cache-Control: public, max-age=31536000, immutable
+```
+
+Runtime-filer som `index.html`, `config.js` och `version.txt` använder `no-cache` så att nya deploymenter och runtime-konfigurationer kan upptäckas.
+
+Vi använder också samma byggda image genom staging och production i stället för att bygga om applikationen för production.
+
+### Skalningsbeslut
+
+Vår uppskattade topplast är cirka **17 req/s**.
+
+Det är betydligt lägre än de uppmätta resultaten, men de lokala resultaten är inte produktionsgarantier. Därför ska faktisk CPU, minne, latency och fel följas i drift innan en exakt skalningsgräns fastställs.
+
+Vår operativa startpunkt är:
+
+> **CPU över 70 % i minst fem minuter under förväntad topplast.**
+
+Om detta inträffar och svarstider/fel samtidigt ökar bör vi först kontrollera om problemet ligger i API:t eller annan backend-infrastruktur. Vid fortsatt hög belastning kan horisontell skalning med flera instanser användas.

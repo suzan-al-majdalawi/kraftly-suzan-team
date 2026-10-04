@@ -176,19 +176,19 @@ jobs:
       - name: Be Render köra exakt den här imagen i produktion
         id: hook
         env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }} # samma namn som i staging – men miljön production har sitt EGET värde
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          if [ -z "$HOOK" ]; then
-            echo "::warning::RENDER_DEPLOY_HOOK saknas i miljön production – hoppar över"
-            exit 0
-          fi
+          : "${HOOK:?RENDER_DEPLOY_HOOK saknas i miljön production}"
+
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
           ENCODED=$(jq -rn --arg u "$IMAGE" '$u|@uri')
+
           curl -fsS -X POST "${HOOK}&imgURL=${ENCODED}"
+
           echo
           echo "Render har tagit emot $IMAGE (produktion)"
           echo "deployed=true" >> "$GITHUB_OUTPUT"
-
+          
       - name: Vänta tills produktion kör den här committen
         if: steps.hook.outputs.deployed == 'true'
         env:
