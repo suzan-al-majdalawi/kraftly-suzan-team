@@ -189,26 +189,27 @@ jobs:
           echo "Render har tagit emot $IMAGE (produktion)"
           echo "deployed=true" >> "$GITHUB_OUTPUT"
           
-      - name: Vänta tills produktion kör den här committen
-        if: steps.hook.outputs.deployed == 'true'
+      - name: Vänta tills staging kör den här committen
         env:
-          URL: ${{ vars.PROD_URL }}
+          URL: ${{ vars.STAGING_URL }}
         run: |
-          if [ -z "$URL" ]; then
-            echo "::warning::Variabeln PROD_URL saknas i miljön production – kan inte verifiera"
-            exit 0
-          fi
+          : "${URL:?STAGING_URL saknas i miljön staging}"
           URL="${URL%/}"
+
           for i in $(seq 1 30); do
-            LIVE=$(curl -fsS "$URL/version.txt" 2>/dev/null || true)
-            if [ "$LIVE" = "$GITHUB_SHA" ]; then
+            HTTP=$(curl -sS -o /tmp/version.txt -w "%{http_code}" "$URL/version.txt" || true)
+            LIVE=$(cat /tmp/version.txt 2>/dev/null || true)
+
+            if [ "$HTTP" = "200" ] && [ "$LIVE" = "$GITHUB_SHA" ]; then
               echo "✅ $URL kör $GITHUB_SHA"
               exit 0
             fi
-            echo "Försök $i/30: produktion kör ${LIVE:-(inget svar ännu)} – väntar 10 s"
+
+            echo "Försök $i/30: HTTP $HTTP, staging kör ${LIVE:-(inget svar ännu)} – väntar 10 s"
             sleep 10
           done
-          echo "::error::Produktion kör fortfarande inte $GITHUB_SHA efter 5 minuter. Kolla Events/Logs i Render."
+
+          echo "::error::Staging kör inte $GITHUB_SHA efter 5 minuter."
           exit 1
 
       - name: Röktest – svarar produktion utan Norge-kortet?
