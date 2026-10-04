@@ -248,3 +248,7 @@ ghcr.io/suzan-al-majdalawi/kraftly-suzan-team:main
 ```
 
 Render ska använda **Existing Image** om målet är att Render ska köra den image som GitHub Actions redan har byggt och publicerat.
+
+## M5:
+
+Production deployeras via GitHub Actions med samma SHA/image som verifierats i staging och kräver approval.

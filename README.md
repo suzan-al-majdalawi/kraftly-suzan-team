@@ -109,3 +109,7 @@ Det viktiga är att README nu visar:
 - ❌ Dubbla `kraftly-portal`-rubriker är borta
 - ✅ CI-badge finns kvar
 - ✅ Projektets Git/PR-regler finns kvar
+
+## M5:
+
+### Production deployeras via GitHub Actions med staging-verifierad image/SHA och kräver production approval.
