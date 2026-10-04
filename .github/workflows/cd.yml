@@ -142,19 +142,25 @@ jobs:
       - name: Röktest – går inloggningen genom proxyn?
         env:
           URL: ${{ vars.STAGING_URL }}
-
         run: |
           URL="${URL%/}"
 
-          curl -fsS \
+          HTTP=$(curl -sS -o /tmp/login-response.txt -w "%{http_code}" \
             -X POST \
             "$URL/api/login" \
             -H 'Content-Type: application/json' \
-            -d '{"email":"a@b.se","password":"x"}'
+            -d '{"email":"a@b.se","password":"x"}' || true)
 
-          echo
-          echo "✅ /api svarar via nginx med nyckeln från Render"
+          echo "HTTP status: $HTTP"
+          cat /tmp/login-response.txt || true
 
+          if [ "$HTTP" = "200" ] || [ "$HTTP" = "401" ]; then
+            echo "✅ /api svarar via nginx med nyckeln från Render"
+            exit 0
+          fi
+
+          echo "::error::Staging /api/login svarade HTTP $HTTP"
+          exit 1
 
   deploy-production:
     name: Deploy → produktion
@@ -221,17 +227,22 @@ jobs:
       - name: Röktest – svarar produktion utan Norge-kortet?
         env:
           URL: ${{ vars.PROD_URL }}
-
         run: |
           URL="${URL%/}"
 
-          curl -fsS \
+          HTTP=$(curl -sS -o /tmp/login-response.txt -w "%{http_code}" \
             -X POST \
             "$URL/api/login" \
             -H 'Content-Type: application/json' \
-            -d '{"email":"a@b.se","password":"x"}'
+            -d '{"email":"a@b.se","password":"x"}' || true)
 
-          echo
+          echo "HTTP status: $HTTP"
+          cat /tmp/login-response.txt || true
+
+          if [ "$HTTP" != "200" ] && [ "$HTTP" != "401" ]; then
+            echo "::error::Production /api/login svarade HTTP $HTTP"
+            exit 1
+          fi
 
           if curl -fsS "$URL/config.js" | grep -q "norway: false"; then
             echo "✅ /api svarar och FEATURE_NORWAY är av i produktion"
