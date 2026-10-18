@@ -1,41 +1,54 @@
 import { createRouter, createWebHistory } from "vue-router";
-
-import LoginView from "../views/LoginView.vue";
-import DashboardView from "../views/DashboardView.vue";
-import InvoicesView from "../views/InvoicesView.vue";
-import MoveFormView from "../views/MoveFormView.vue";
-import ProfileView from "../views/ProfileView.vue";
-import { refresh } from "../services/api";
+import { hasSession, refreshSession } from "../services/api";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/login", component: LoginView, meta: { guestOnly: true } },
-    { path: "/", component: DashboardView, meta: { requiresAuth: true } },
     {
-      path: "/fakturor",
-      component: InvoicesView,
+      path: "/login",
+      component: () => import("../views/LoginView.vue"),
+      meta: { guestOnly: true },
+    },
+    {
+      path: "/",
+      component: () => import("../views/DashboardView.vue"),
       meta: { requiresAuth: true },
     },
-    { path: "/flytt", component: MoveFormView, meta: { requiresAuth: true } },
-    { path: "/profil", component: ProfileView, meta: { requiresAuth: true } },
+    {
+      path: "/fakturor",
+      component: () => import("../views/InvoicesView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/flytt",
+      component: () => import("../views/MoveFormView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/profil",
+      component: () => import("../views/ProfileView.vue"),
+      meta: { requiresAuth: true },
+    },
   ],
 });
 
 router.beforeEach(async (to) => {
-  if (to.meta.requiresAuth) {
+  let authenticated = hasSession();
+
+  if (!authenticated) {
     try {
-      // يتحقق من الجلسة باستخدام refresh cookie إذا لم يوجد access token.
-      await refresh();
-      return true;
+      authenticated = await refreshSession();
     } catch {
-      return "/login";
+      authenticated = false;
     }
   }
 
-  if (to.meta.guestOnly) {
-    // لا نمنع صفحة الدخول اعتمادًا على localStorage.
-    return true;
+  if (to.meta.requiresAuth && !authenticated) {
+    return "/login";
+  }
+
+  if (to.meta.guestOnly && authenticated) {
+    return "/";
   }
 
   return true;

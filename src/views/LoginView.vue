@@ -5,7 +5,6 @@
       <h1>Logga in på Mina sidor</h1>
 
       <p v-if="loading">Loggar in...</p>
-      <p v-else-if="error" role="alert">{{ error }}</p>
 
       <form @submit.prevent="handleLogin">
         <label for="email">E-postadress</label>
