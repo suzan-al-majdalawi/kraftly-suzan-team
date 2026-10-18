@@ -5,8 +5,13 @@
       <h1>Logga in på Mina sidor</h1>
       <input v-model="email" type="text" placeholder="E-postadress" />
       <input v-model="password" type="password" placeholder="Lösenord" />
-      <button class="btn" style="width: 100%" @click="handleLogin">
-        Logga in
+      <button
+        class="btn"
+        style="width: 100%"
+        :disabled="isLoading"
+        @click="handleLogin"
+      >
+        {{ isLoading ? "Loggar in..." : "Logga in" }}
       </button>
       <p class="hint" style="margin-top: 10px">
         Problem att logga in? Ring kundservice 020-123 456
@@ -22,13 +27,25 @@ import { login } from "../services/api";
 
 const email = ref("");
 const password = ref("");
+const errorMessage = ref("");
+const isLoading = ref(false);
 const router = useRouter();
 
 const handleLogin = async () => {
-  // validation coming in v2 :)
-  await login(email.value, password.value);
-  localStorage.setItem("kraftly_logged_in", "true");
-  router.push("/");
+  if (isLoading.value) return;
+
+  isLoading.value = true;
+  errorMessage.value = "";
+
+  try {
+    await login(email.value, password.value);
+    await router.push("/");
+  } catch {
+    errorMessage.value =
+      "Inloggningen misslyckades. Kontrollera dina uppgifter.";
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 
