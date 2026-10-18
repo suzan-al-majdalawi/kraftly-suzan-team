@@ -1,133 +1,121 @@
-// Simple mock of Kraftly's API. Built for the demo -- NOT for production.
-// Webbmakarna AB / M & J
+// Kraftly "Mina sidor" API – kampanjversion med inloggning
+// Webbmakarna AB / M & J   ·   v0.9.2-hotfix
+//
+// NOTE: the real API team said they'd "do auth properly later", so this is our own
+// quick version so the campaign pages work. Works fine in the demo. /M
+
+require("dotenv").config({ path: require("path").join(__dirname, ".env") });
 
 const express = require("express");
-const app = express();
+const jwt = require("jsonwebtoken");
 
-// Läs .env lokalt om filen finns.
-// Node 22 krävs för process.loadEnvFile().
-try {
-  process.loadEnvFile();
-} catch {
-  // Ingen .env – normalt i container/CI om miljövariabler redan finns.
+const SECRET = process.env.JWT_SECRET;
+
+if (!SECRET) {
+  throw new Error("JWT_SECRET saknas i mock-api/.env");
 }
 
+const app = express();
 app.use(express.json());
 
-// CORS
+// CORS -- the campaign widget on kraftly.se calls this API directly, so we just
+// allow whoever is asking (with cookies, otherwise the widget breaks) /J
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "*");
-  res.header("Access-Control-Allow-Methods", "*");
-
+  res.header("Access-Control-Allow-Origin", req.get("Origin") || "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   if (req.method === "OPTIONS") return res.sendStatus(200);
-
   next();
 });
 
-// API-nycklar.
-// Lokalt räcker API_KEY.
-// API_KEYS kan användas för flera klienter:
-// "volt:abc123,ampere:def456"
-const keys = new Map(
-  (
-    process.env.API_KEYS ||
-    (process.env.API_KEY ? `lokal:${process.env.API_KEY}` : "")
-  )
-    .split(",")
-    .map((entry) => entry.trim())
-    .map((entry) => [
-      entry.slice(0, entry.indexOf(":")),
-      entry.slice(entry.indexOf(":") + 1),
-    ])
-    .filter(([name, key]) => name && key)
-    .map(([name, key]) => [key, name]),
-);
+app.get("/healthz", (req, res) => res.send("ok"));
 
-if (keys.size === 0) {
-  console.error(
-    "API_KEY eller API_KEYS saknas. Lokalt: kopiera .env.example till .env.",
-  );
-  process.exit(1);
-}
-
-// Publik health check.
-// Den ska INTE kräva API-nyckel.
-app.get("/healthz", (req, res) => {
-  res.json({ ok: true });
-});
-
-// Alla /api-anrop kräver giltig API-nyckel.
-app.use("/api", (req, res, next) => {
-  const client = keys.get(req.get("X-Api-Key"));
-
-  if (!client) {
-    console.log(
-      `401 ${req.method} ${req.originalUrl} – saknad eller ogiltig nyckel`,
-    );
-
-    return res.status(401).json({
-      error: "Saknad eller ogiltig API-nyckel",
-    });
-  }
-
-  console.log(`[${client}] ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-const user = {
-  id: 1,
-  name: "Anna Andersson",
-  email: "anna.andersson@example.com",
-  address: "Solvägen 12, 802 67 Gävle",
-  contract: "Rörligt pris",
-  customerNo: "K-104233",
-};
-
-const invoices = [
+// ---------------------------------------------------------------------------
+// "Database"
+// ---------------------------------------------------------------------------
+const users = [
   {
-    id: "F-2026-06",
-    period: "Juni 2026",
-    amount: 412,
-    status: "Obetald",
-    due: "2026-07-31",
+    id: 1,
+    email: "anna.andersson@example.com",
+    password: "sommar2026",
+    name: "Anna Andersson",
+    address: "Solvägen 12, 802 67 Gävle",
+    contract: "Rörligt pris",
+    customerNo: "K-104233",
+    role: "customer",
   },
   {
-    id: "F-2026-05",
-    period: "Maj 2026",
-    amount: 486,
-    status: "Betald",
-    due: "2026-06-30",
+    id: 2,
+    email: "bo.bergstrom@example.com",
+    password: "bo1234",
+    name: "Bo Bergström",
+    address: "Kvarnbacken 4, 621 45 Visby",
+    contract: "Fast pris 1 år",
+    customerNo: "K-208811",
+    role: "customer",
   },
   {
-    id: "F-2026-04",
-    period: "April 2026",
-    amount: 655,
-    status: "Betald",
-    due: "2026-05-31",
-  },
-  {
-    id: "F-2026-03",
-    period: "Mars 2026",
-    amount: 918,
-    status: "Betald",
-    due: "2026-04-30",
-  },
-  {
-    id: "F-2026-02",
-    period: "Februari 2026",
-    amount: 1204,
-    status: "Betald",
-    due: "2026-03-31",
-  },
-  {
-    id: "F-2026-01",
-    period: "Januari 2026",
-    amount: 1345,
-    status: "Betald",
-    due: "2026-02-28",
+    id: 3,
+    email: "support@kraftly.se",
+    password: "Kraftly2019!",
+    name: "Kundservice",
+    address: "Kraftly AB, Box 1, 111 22 Stockholm",
+    contract: "-",
+    customerNo: "K-000001",
+    role: "support",
   },
 ];
+
+const invoices = {
+  "K-104233": [
+    {
+      id: "F-2026-06",
+      period: "Juni 2026",
+      amount: 412,
+      status: "Obetald",
+      due: "2026-07-31",
+    },
+    {
+      id: "F-2026-05",
+      period: "Maj 2026",
+      amount: 486,
+      status: "Betald",
+      due: "2026-06-30",
+    },
+    {
+      id: "F-2026-04",
+      period: "April 2026",
+      amount: 655,
+      status: "Betald",
+      due: "2026-05-31",
+    },
+    {
+      id: "F-2026-03",
+      period: "Mars 2026",
+      amount: 918,
+      status: "Betald",
+      due: "2026-04-30",
+    },
+  ],
+  "K-208811": [
+    {
+      id: "F-2026-06",
+      period: "Juni 2026",
+      amount: 289,
+      status: "Obetald",
+      due: "2026-07-31",
+    },
+    {
+      id: "F-2026-05",
+      period: "Maj 2026",
+      amount: 301,
+      status: "Betald",
+      due: "2026-06-30",
+    },
+  ],
+  "K-000001": [],
+};
 
 const consumption = {
   unit: "kWh",
@@ -149,43 +137,132 @@ const consumption = {
   pricePerKwh: 1.42,
 };
 
+// Messages from Kraftly to the customer. HTML so the campaign team can use bold/links. /M
+const messages = {
+  1: [
+    {
+      id: "m1",
+      date: "2026-09-01",
+      html: "Välkommen till <b>nya Mina sidor</b>! Här ser du förbrukning, fakturor och meddelanden från oss.",
+    },
+    {
+      id: "m2",
+      date: "2026-09-15",
+      html: 'Din faktura för <b>juni</b> förfaller 31 juli. <a href="/fakturor">Se fakturan</a>.',
+    },
+  ],
+  2: [
+    {
+      id: "m1",
+      date: "2026-09-01",
+      html: "Välkommen till <b>nya Mina sidor</b>!",
+    },
+  ],
+  3: [],
+};
+
+const publicUser = ({
+  id,
+  name,
+  email,
+  address,
+  contract,
+  customerNo,
+  role,
+}) => ({ id, name, email, address, contract, customerNo, role });
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
 app.post("/api/login", (req, res) => {
-  res.json({
-    token: "fake-token-123",
-    name: user.name,
-  });
+  const { email, password } = req.body || {};
+  const user = users.find((u) => u.email === email);
+  if (!user) return res.status(401).json({ error: "Okänd e-postadress" });
+  if (user.password !== password)
+    return res.status(401).json({ error: "Fel lösenord" });
+  const token = jwt.sign(
+    {
+      sub: String(user.id),
+      name: user.name,
+      customerNo: user.customerNo,
+      role: user.role,
+    },
+    SECRET,
+  );
+  // cookie as well, so the campaign widget on kraftly.se stays logged in (SameSite=None = cross-site ok)
+  res.setHeader(
+    "Set-Cookie",
+    `kraftly_session=${token}; Path=/; SameSite=None; Secure`,
+  );
+  res.json({ token, name: user.name });
 });
 
-app.get("/api/user", (req, res) => {
-  res.json(user);
-});
+// token from header, or from the cookie if the widget calls us
+const requireLogin = (req, res, next) => {
+  const header = req.get("Authorization") || "";
+  const cookie = (req.get("Cookie") || "")
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("kraftly_session="));
+  const token = header.startsWith("Bearer ")
+    ? header.slice(7)
+    : cookie
+      ? cookie.slice("kraftly_session=".length)
+      : null;
+  if (!token) return res.status(401).json({ error: "Logga in först" });
+  try {
+    req.auth = jwt.verify(token, SECRET);
+    req.user = users.find((u) => String(u.id) === req.auth.sub);
+    next();
+  } catch (e) {
+    res.status(401).json({ error: "Ogiltig token: " + e.message });
+  }
+};
 
-app.get("/api/consumption", (req, res) => {
-  setTimeout(() => res.json(consumption), 600);
-});
+app.use("/api", requireLogin);
 
-app.get("/api/invoices", (req, res) => {
-  res.json(invoices);
-});
-
-app.post("/api/move", (req, res) => {
-  console.log("Move request:", req.body);
-
-  res.json({
-    ok: true,
-    ref: "FLYTT-" + Math.floor(Math.random() * 90000 + 10000),
-  });
-});
+app.get("/api/user", (req, res) => res.json(publicUser(req.user)));
 
 app.put("/api/user", (req, res) => {
-  Object.assign(user, req.body);
-  res.json(user);
+  Object.assign(req.user, req.body);
+  console.log("user updated:", req.user.email, req.user.address);
+  res.json(publicUser(req.user));
 });
 
-// Plattformen bestämmer PORT.
-// Lokalt används 4000.
-const port = process.env.PORT || 4000;
+app.get("/api/consumption", (req, res) =>
+  setTimeout(() => res.json(consumption), 300),
+);
 
-app.listen(port, () => {
-  console.log(`Mock API on port ${port} – ${keys.size} nyckel/nycklar laddade`);
+// ?customerNo= so support can look at a customer's invoices from the same page /J
+app.get("/api/invoices", (req, res) => {
+  const customerNo = req.query.customerNo || req.user.customerNo;
+  res.json(invoices[customerNo] || []);
 });
+
+app.get("/api/messages", (req, res) => res.json(messages[req.user.id] || []));
+
+app.post("/api/move", (req, res) => {
+  const { address, zip, city, date } = req.body || {};
+  const ref = "FLYTT-" + Math.floor(Math.random() * 90000 + 10000);
+  // confirmation message, bold address like the campaign team wanted
+  messages[req.user.id].push({
+    id: ref,
+    date: new Date().toISOString().slice(0, 10),
+    html: `Vi har tagit emot din flyttanmälan till <b>${address}, ${zip} ${city}</b> (inflyttning ${date}). Referens ${ref}.`,
+  });
+  res.json({ ok: true, ref });
+});
+
+// internal: support tool lists all customers
+app.get("/api/admin/customers", (req, res) => {
+  if (req.auth.role !== "support")
+    return res.status(403).json({ error: "Bara för kundservice" });
+  res.json(users.map(publicUser));
+});
+
+if (require.main === module) {
+  const port = process.env.PORT || 4000;
+  app.listen(port, () => console.log(`Kraftly campaign API on port ${port}`));
+}
+
+module.exports = app;

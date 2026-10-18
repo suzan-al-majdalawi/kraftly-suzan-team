@@ -4,6 +4,14 @@ import vue from "@vitejs/plugin-vue";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
+  const apiProxy = {
+    target: env.API_URL || "https://kraftly-api.sprinto.cloud",
+    changeOrigin: true,
+    headers: {
+      "X-Api-Key": env.API_KEY,
+    },
+  };
+
   return {
     plugins: [vue()],
 
@@ -15,33 +23,13 @@ export default defineConfig(({ mode }) => {
 
     server: {
       proxy: {
-        "/api": {
-          target: env.API_URL || "http://localhost:4000",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              if (env.API_KEY) {
-                proxyReq.setHeader("X-Api-Key", env.API_KEY);
-              }
-            });
-          },
-        },
+        "/api": apiProxy,
       },
     },
 
     preview: {
       proxy: {
-        "/api": {
-          target: env.API_URL || "http://localhost:4000",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              if (env.API_KEY) {
-                proxyReq.setHeader("X-Api-Key", env.API_KEY);
-              }
-            });
-          },
-        },
+        "/api": apiProxy,
       },
     },
   };
