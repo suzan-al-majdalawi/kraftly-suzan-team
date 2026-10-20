@@ -1,7 +1,6 @@
 let accessToken = null;
-let refreshPromise = null;
 
-const request = async (path, options = {}, retry = true) => {
+const request = async (path, options = {}) => {
   const headers = new Headers(options.headers || {});
   headers.set("Content-Type", "application/json");
 
@@ -14,21 +13,6 @@ const request = async (path, options = {}, retry = true) => {
     headers,
     credentials: "include",
   });
-
-  if (
-    response.status === 401 &&
-    retry &&
-    path !== "/api/v2/auth/login" &&
-    path !== "/api/v2/auth/refresh"
-  ) {
-    const refreshed = await refreshSession();
-
-    if (refreshed) {
-      return request(path, options, false);
-    }
-
-    accessToken = null;
-  }
 
   if (response.status === 204) return null;
 
@@ -51,48 +35,20 @@ const request = async (path, options = {}, retry = true) => {
 
 export const hasSession = () => Boolean(accessToken);
 
+// Mock-API:t har ingen refresh-endpoint.
+// En omladdning av sidan kräver därför ny inloggning.
 export const refreshSession = async () => {
-  if (refreshPromise) return refreshPromise;
-
-  refreshPromise = (async () => {
-    try {
-      const data = await request(
-        "/api/v2/auth/refresh",
-        { method: "POST" },
-        false,
-      );
-
-      const token = data?.accessToken ?? data?.access_token ?? data?.token;
-
-      if (!token) {
-        accessToken = null;
-        return false;
-      }
-
-      accessToken = token;
-      return true;
-    } catch {
-      accessToken = null;
-      return false;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
+  accessToken = null;
+  return false;
 };
 
 export const login = async (email, password) => {
-  const data = await request(
-    "/api/v2/auth/login",
-    {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    },
-    false,
-  );
+  const data = await request("/api/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
 
-  const token = data?.accessToken ?? data?.access_token ?? data?.token;
+  const token = data?.token;
 
   if (!token) {
     accessToken = null;
@@ -103,26 +59,24 @@ export const login = async (email, password) => {
   return data;
 };
 
-export const logout = async () => {
-  try {
-    await request("/api/v2/auth/logout", { method: "POST" }, false);
-  } finally {
-    accessToken = null;
-  }
+export const logout = () => {
+  accessToken = null;
+  return Promise.resolve();
 };
 
-export const fetchUser = () => request("/api/v2/user");
-export const fetchConsumption = () => request("/api/v2/consumption");
-export const fetchInvoices = () => request("/api/v2/invoices");
+export const fetchUser = () => request("/api/user");
+export const fetchConsumption = () => request("/api/consumption");
+export const fetchInvoices = () => request("/api/invoices");
+export const fetchMessages = () => request("/api/messages");
 
 export const submitMove = (data) =>
-  request("/api/v2/move", {
+  request("/api/move", {
     method: "POST",
     body: JSON.stringify(data),
   });
 
 export const saveUser = (data) =>
-  request("/api/v2/user", {
+  request("/api/user", {
     method: "PUT",
     body: JSON.stringify(data),
   });

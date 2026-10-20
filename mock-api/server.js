@@ -1,10 +1,6 @@
-// Kraftly "Mina sidor" API – kampanjversion med inloggning
-// Webbmakarna AB / M & J   ·   v0.9.2-hotfix
-//
-// NOTE: the real API team said they'd "do auth properly later", so this is our own
-// quick version so the campaign pages work. Works fine in the demo. /M
-
-require("dotenv").config({ path: require("path").join(__dirname, ".env") });
+require("dotenv").config({
+  path: require("path").join(__dirname, ".env"),
+});
 
 const express = require("express");
 const jwt = require("jsonwebtoken");
@@ -16,23 +12,37 @@ if (!SECRET) {
 }
 
 const app = express();
+
 app.use(express.json());
 
-// CORS -- the campaign widget on kraftly.se calls this API directly, so we just
-// allow whoever is asking (with cookies, otherwise the widget breaks) /J
+// CORS
+
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", req.get("Origin") || "*");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  if (req.method === "OPTIONS") return res.sendStatus(200);
+  if (req.url.startsWith("/api/v2/auth/login")) {
+    req.url = req.url.replace(/^\/api\/v2\/auth\/login/, "/api/login");
+  } else if (req.url.startsWith("/api/v2/auth/refresh")) {
+    req.url = req.url.replace(/^\/api\/v2\/auth\/refresh/, "/api/auth/refresh");
+  } else if (req.url.startsWith("/api/v2/auth/logout")) {
+    req.url = req.url.replace(/^\/api\/v2\/auth\/logout/, "/api/auth/logout");
+  } else if (req.url.startsWith("/api/v2/")) {
+    req.url = req.url.replace(/^\/api\/v2/, "/api");
+  }
+
   next();
 });
 
 app.get("/healthz", (req, res) => res.send("ok"));
 
+// Stöd både gamla /api-adresser och frontendens /api/v2-adresser.
+app.use((req, res, next) => {
+  if (req.url.startsWith("/api/v2/")) {
+    req.url = req.url.replace(/^\/api\/v2/, "/api");
+  }
+  next();
+});
+
 // ---------------------------------------------------------------------------
-// "Database"
+// Databas för lokal utveckling och test
 // ---------------------------------------------------------------------------
 const users = [
   {
@@ -137,7 +147,6 @@ const consumption = {
   pricePerKwh: 1.42,
 };
 
-// Messages from Kraftly to the customer. HTML so the campaign team can use bold/links. /M
 const messages = {
   1: [
     {
@@ -171,16 +180,8 @@ const publicUser = ({
   role,
 }) => ({ id, name, email, address, contract, customerNo, role });
 
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
-app.post("/api/login", (req, res) => {
-  const { email, password } = req.body || {};
-  const user = users.find((u) => u.email === email);
-  if (!user) return res.status(401).json({ error: "Okänd e-postadress" });
-  if (user.password !== password)
-    return res.status(401).json({ error: "Fel lösenord" });
-  const token = jwt.sign(
+const createToken = (user) =>
+  jwt.sign(
     {
       sub: String(user.id),
       name: user.name,
@@ -188,81 +189,215 @@ app.post("/api/login", (req, res) => {
       role: user.role,
     },
     SECRET,
+    { expiresIn: "2h" },
   );
-  // cookie as well, so the campaign widget on kraftly.se stays logged in (SameSite=None = cross-site ok)
-  res.setHeader(
-    "Set-Cookie",
-    `kraftly_session=${token}; Path=/; SameSite=None; Secure`,
-  );
-  res.json({ token, name: user.name });
+
+const setSessionCookie = (res, token) => {
+  // Secure=false behövs för lokal HTTP-utveckling.
+  // Använd HTTPS och Secure=true i en riktig driftsmiljö.
+  res.cookie("kraftly_session", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+    maxAge: 2 * 60 * 60 * 1000,
+  });
+};
+
+const clearSessionCookie = (res) => {
+  res.clearCookie("kraftly_session", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+  });
+};
+
+// Läser cookies utan extra paket.
+const readCookie = (req, name) => {
+  const cookies = (req.headers.cookie || "").split(";");
+
+  const entry = cookies
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${name}=`));
+
+  return entry ? decodeURIComponent(entry.slice(name.length + 1)) : null;
+};
+
+const getToken = (req) => {
+  const header = req.get("Authorization") || "";
+
+  if (header.startsWith("Bearer ")) {
+    return header.slice(7);
+  }
+
+  return readCookie(req, "kraftly_session");
+};
+
+// ---------------------------------------------------------------------------
+// Auth – offentliga endpoints måste ligga före requireLogin
+// ---------------------------------------------------------------------------
+app.post("/api/login", (req, res) => {
+  const { email, password } = req.body || {};
+
+  const user = users.find((item) => item.email === email);
+
+  if (!user) {
+    return res.status(401).json({ error: "Okänd e-postadress" });
+  }
+
+  if (user.password !== password) {
+    return res.status(401).json({ error: "Fel lösenord" });
+  }
+
+  const token = createToken(user);
+
+  setSessionCookie(res, token);
+
+  res.json({
+    token,
+    accessToken: token,
+    name: user.name,
+    user: publicUser(user),
+  });
 });
 
-// token from header, or from the cookie if the widget calls us
+app.post("/api/auth/refresh", (req, res) => {
+  const token = readCookie(req, "kraftly_session");
+
+  if (!token) {
+    return res.status(401).json({ error: "Ingen aktiv session" });
+  }
+
+  try {
+    const payload = jwt.verify(token, SECRET);
+    const user = users.find((item) => String(item.id) === payload.sub);
+
+    if (!user) {
+      clearSessionCookie(res);
+      return res.status(401).json({ error: "Användaren finns inte" });
+    }
+
+    const accessToken = createToken(user);
+
+    setSessionCookie(res, accessToken);
+
+    res.json({
+      accessToken,
+      token: accessToken,
+      name: user.name,
+    });
+  } catch {
+    clearSessionCookie(res);
+    res.status(401).json({ error: "Sessionen har gått ut" });
+  }
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  clearSessionCookie(res);
+  res.sendStatus(204);
+});
+
+// ---------------------------------------------------------------------------
+// Skyddade endpoints
+// ---------------------------------------------------------------------------
 const requireLogin = (req, res, next) => {
-  const header = req.get("Authorization") || "";
-  const cookie = (req.get("Cookie") || "")
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith("kraftly_session="));
-  const token = header.startsWith("Bearer ")
-    ? header.slice(7)
-    : cookie
-      ? cookie.slice("kraftly_session=".length)
-      : null;
-  if (!token) return res.status(401).json({ error: "Logga in först" });
+  const token = getToken(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "Logga in först" });
+  }
+
   try {
     req.auth = jwt.verify(token, SECRET);
-    req.user = users.find((u) => String(u.id) === req.auth.sub);
+    req.user = users.find((user) => String(user.id) === req.auth.sub);
+
+    if (!req.user) {
+      return res.status(401).json({ error: "Användaren finns inte" });
+    }
+
     next();
-  } catch (e) {
-    res.status(401).json({ error: "Ogiltig token: " + e.message });
+  } catch {
+    res.status(401).json({ error: "Ogiltig eller utgången token" });
   }
 };
 
 app.use("/api", requireLogin);
 
-app.get("/api/user", (req, res) => res.json(publicUser(req.user)));
-
-app.put("/api/user", (req, res) => {
-  Object.assign(req.user, req.body);
-  console.log("user updated:", req.user.email, req.user.address);
+app.get("/api/user", (req, res) => {
   res.json(publicUser(req.user));
 });
 
-app.get("/api/consumption", (req, res) =>
-  setTimeout(() => res.json(consumption), 300),
-);
+app.put("/api/user", (req, res) => {
+  const { name, email, address } = req.body || {};
 
-// ?customerNo= so support can look at a customer's invoices from the same page /J
+  if (typeof name === "string") req.user.name = name;
+  if (typeof email === "string") req.user.email = email;
+  if (typeof address === "string") req.user.address = address;
+
+  console.log("user updated:", req.user.email, req.user.address);
+
+  res.json(publicUser(req.user));
+});
+
+app.get("/api/consumption", (req, res) => {
+  setTimeout(() => res.json(consumption), 300);
+});
+
 app.get("/api/invoices", (req, res) => {
-  const customerNo = req.query.customerNo || req.user.customerNo;
+  const customerNo =
+    req.user.role === "support" && req.query.customerNo
+      ? req.query.customerNo
+      : req.user.customerNo;
+
   res.json(invoices[customerNo] || []);
 });
 
-app.get("/api/messages", (req, res) => res.json(messages[req.user.id] || []));
+app.get("/api/messages", (req, res) => {
+  res.json(messages[req.user.id] || []);
+});
 
 app.post("/api/move", (req, res) => {
   const { address, zip, city, date } = req.body || {};
-  const ref = "FLYTT-" + Math.floor(Math.random() * 90000 + 10000);
-  // confirmation message, bold address like the campaign team wanted
+
+  if (
+    ![address, zip, city, date].every(
+      (value) => typeof value === "string" && value.trim(),
+    )
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Fyll i adress, postnummer, ort och datum" });
+  }
+
+  const ref = `FLYTT-${Math.floor(Math.random() * 90000 + 10000)}`;
+
+  if (!messages[req.user.id]) {
+    messages[req.user.id] = [];
+  }
+
   messages[req.user.id].push({
     id: ref,
     date: new Date().toISOString().slice(0, 10),
     html: `Vi har tagit emot din flyttanmälan till <b>${address}, ${zip} ${city}</b> (inflyttning ${date}). Referens ${ref}.`,
   });
+
   res.json({ ok: true, ref });
 });
 
-// internal: support tool lists all customers
 app.get("/api/admin/customers", (req, res) => {
-  if (req.auth.role !== "support")
+  if (req.auth.role !== "support") {
     return res.status(403).json({ error: "Bara för kundservice" });
+  }
+
   res.json(users.map(publicUser));
 });
 
 if (require.main === module) {
   const port = process.env.PORT || 4000;
-  app.listen(port, () => console.log(`Kraftly campaign API on port ${port}`));
+  app.listen(port, () => {
+    console.log(`Kraftly campaign API on port ${port}`);
+  });
 }
 
 module.exports = app;
