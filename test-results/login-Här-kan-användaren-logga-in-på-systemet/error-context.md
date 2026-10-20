@@ -7,7 +7,7 @@
 # Test info
 
 - Name: login.spec.js >> Här kan användaren logga in på systemet
-- Location: e2e\login.spec.js:4:5
+- Location: e2e\login.spec.js:3:5
 
 # Error details
 
@@ -40,22 +40,21 @@ Call log:
 # Test source
 
 ```ts
-  1  |
-  2  | import { test, expect } from "@playwright/test";
-  3  |
-  4  | test("Här kan användaren logga in på systemet", async ({ page }) => {
-  5  |   await page.goto("/login");
-  6  |
-  7  |   await page.getByPlaceholder("E-postadress").fill(
-  8  |     "anna.andersson@example.com"
-  9  |   );
-  10 |   await page.getByPlaceholder("Lösenord").fill("sommar2026");
-  11 |
-  12 |   await page.getByRole("button", { name: "Logga in" }).click();
-  13 |
-> 14 |   await expect(page).toHaveURL("/");
+  1  | import { test, expect } from "@playwright/test";
+  2  |
+  3  | test("Här kan användaren logga in på systemet", async ({ page }) => {
+  4  |   await page.goto("/login");
+  5  |
+  6  |   await page
+  7  |     .getByPlaceholder("E-postadress")
+  8  |     .fill("anna.andersson@example.com");
+  9  |   await page.getByPlaceholder("Lösenord").fill("sommar2026");
+  10 |
+  11 |   await page.getByRole("button", { name: "Logga in" }).click();
+  12 |
+> 13 |   await expect(page).toHaveURL("/");
      |                      ^ Error: expect(page).toHaveURL(expected) failed
-  15 |   await expect(page.getByText("Mina uppgifter")).toBeVisible();
-  16 | });
-  17 |
+  14 |   await expect(page.getByText("Mina uppgifter")).toBeVisible();
+  15 | });
+  16 |
 ```
