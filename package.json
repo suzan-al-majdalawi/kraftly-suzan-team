@@ -41,7 +41,7 @@
     "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/vue": "^8.1.0",
-    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.5.0",
     "cypress": "^15.21.1",
     "eslint": "^10.9.1",

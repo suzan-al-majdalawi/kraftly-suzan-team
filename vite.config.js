@@ -1,17 +1,22 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-export default defineConfig({
-  plugins: [vue()],
-  server: {
-    host: "localhost",
-    port: 8080,
-    strictPort: true,
-    proxy: {
-      "/api": {
-        target: "http://localhost:4000",
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+
+  return {
+    plugins: [vue()],
+
+    server: {
+      proxy: {
+        "/api": {
+          target: env.API_URL,
+          changeOrigin: true,
+          headers: {
+            "X-Api-Key": env.API_KEY,
+          },
+        },
       },
     },
-  },
+  };
 });
