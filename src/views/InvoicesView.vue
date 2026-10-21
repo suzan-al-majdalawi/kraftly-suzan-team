@@ -43,13 +43,20 @@ import { ref, onMounted } from "vue";
 import { fetchInvoices } from "../services/api";
 
 const invoices = ref([]);
+const loading = ref(true);
+const error = ref("");
 
 onMounted(async () => {
-  invoices.value = await fetchInvoices();
+  try {
+    invoices.value = await fetchInvoices();
+  } catch {
+    error.value = "Kunde inte hämta fakturorna. Försök logga in igen.";
+  } finally {
+    loading.value = false;
+  }
 });
 
 const downloadInvoice = (invoice) => {
-  // PDF generation coming in phase 2 per the quote
   console.log("download", invoice.id);
   alert("Nedladdning kommer snart");
 };

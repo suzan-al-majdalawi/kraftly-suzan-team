@@ -1,25 +1,28 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
-import { fetchUser, saveUser } from "../services/api";
+import { fetchUser } from "../services/api";
 
 export const useUserStore = defineStore("user", () => {
   const user = ref(null);
   const loading = ref(false);
+  const error = ref("");
 
   const load = async () => {
     loading.value = true;
+    error.value = "";
+
     try {
       user.value = await fetchUser();
+      return user.value;
     } catch (e) {
-      console.log(e);
+      user.value = null;
+      error.value = "Kunde inte hämta användaruppgifter.";
+      console.error("fetchUser failed:", e);
+      throw e;
+    } finally {
+      loading.value = false;
     }
-    loading.value = false;
   };
 
-  const save = async (data) => {
-    user.value = await saveUser(data);
-    alert("Sparat!");
-  };
-
-  return { user, loading, load, save };
+  return { user, loading, error, load };
 });

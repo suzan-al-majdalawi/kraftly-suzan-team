@@ -1,42 +1,82 @@
-// API client for Kraftly "Mina sidor"
-//
-// Ingen nyckel här. Allt i frontendkoden hamnar i JavaScript-filen som browsern laddar
-// ner – en nyckel här är publik för alla som trycker F12. Appen anropar /api relativt.
-// Servern framför appen (Vite lokalt, nginx i containern) lägger på nyckeln.
-
-const BASE_URL = "";
+let accessToken = null;
 
 const request = async (path, options = {}) => {
-  const res = await fetch(BASE_URL + path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+  const headers = new Headers(options.headers || {});
+  headers.set("Content-Type", "application/json");
 
-  if (!res.ok) {
-    console.log("API error", res.status);
-    throw new Error("API error " + res.status);
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  return res.json();
+  const response = await fetch(path, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
+
+  if (response.status === 204) return null;
+
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null
+        ? data.error || data.message
+        : data;
+
+    throw new Error(message || `API error ${response.status}`);
+  }
+
+  return data;
 };
 
-export const login = (email, password) =>
-  request("/api/login", {
+export const hasSession = () => Boolean(accessToken);
+
+// Mock-API:t har ingen refresh-endpoint.
+// En omladdning av sidan kräver därför ny inloggning.
+export const refreshSession = async () => {
+  accessToken = null;
+  return false;
+};
+
+export const login = async (email, password) => {
+  const data = await request("/api/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
 
+  const token = data?.token;
+
+  if (!token) {
+    accessToken = null;
+    throw new Error("API returned no access token");
+  }
+
+  accessToken = token;
+  return data;
+};
+
+export const logout = () => {
+  accessToken = null;
+  return Promise.resolve();
+};
+
 export const fetchUser = () => request("/api/user");
-
 export const fetchConsumption = () => request("/api/consumption");
-
 export const fetchInvoices = () => request("/api/invoices");
+export const fetchMessages = () => request("/api/messages");
 
 export const submitMove = (data) =>
-  request("/api/move", { method: "POST", body: JSON.stringify(data) });
+  request("/api/move", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
 export const saveUser = (data) =>
-  request("/api/user", { method: "PUT", body: JSON.stringify(data) });
+  request("/api/user", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });

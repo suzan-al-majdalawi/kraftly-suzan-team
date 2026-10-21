@@ -10,15 +10,19 @@ export default defineConfig({
   },
 
   webServer: [
-    {
-      command: "npm run api",
-      url: "http://localhost:4000/healthz",
-      reuseExistingServer: !process.env.CI,
-    },
+    ...(!process.env.CI
+      ? [
+          {
+            command: "npm run api",
+            url: "http://localhost:4000/healthz",
+            reuseExistingServer: true,
+          },
+        ]
+      : []),
     {
       command: "npm run dev",
-      url: "http://localhost:5173",
-      reuseExistingServer: true,
+      url: "http://localhost:8080",
+      reuseExistingServer: !process.env.CI,
     },
   ],
 });
