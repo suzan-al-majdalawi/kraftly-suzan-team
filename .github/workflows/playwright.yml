@@ -1,4 +1,3 @@
-
 name: Playwright Tests
 
 on:
@@ -14,13 +13,13 @@ jobs:
 
     env:
       API_KEY: e2e-testnyckel
-
+      JWT_SECRET: ci-only-test-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -44,20 +43,22 @@ jobs:
           done
 
           echo "Application did not start on port 8080"
-          docker compose ps
+          docker compose ps -a
           docker compose logs
           exit 1
 
       - name: Check application
         if: always()
         run: |
-          docker compose ps
+          docker compose ps -a
           docker compose logs
 
       - name: Run Playwright tests
         env:
-          E2E_SERVER: preview
+          E2E_SERVER: docker
+          PLAYWRIGHT_BASE_URL: http://localhost:8080
           API_KEY: e2e-testnyckel
+          JWT_SECRET: ci-only-test-secret-not-for-production
           FEATURE_NORWAY: "true"
         run: npx playwright test
 
@@ -68,5 +69,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
+          name: playwright-report
           path: playwright-report/
           retention-days: 30
+          if-no-files-found: ignore
