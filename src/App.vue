@@ -31,16 +31,26 @@
 
 <script setup>
 import { useRouter } from "vue-router";
+import { logout as logoutSession } from "./services/api";
 
 const router = useRouter();
 
-// Sätts av containern vid start (public/config.js lokalt).
-// Visas i alla miljöer utom produktion.
+// Sätts av containern vid start.
 const appEnv = window.__KRAFTLY__?.env ?? "lokal";
 
-const logout = () => {
-  localStorage.removeItem("kraftly_logged_in");
-  router.push("/login");
+const logout = async () => {
+  try {
+    // Rensa den riktiga sessionen som routern kontrollerar.
+    await logoutSession();
+
+    // Rensa eventuell äldre inloggningsflagga.
+    localStorage.removeItem("kraftly_logged_in");
+
+    // Gå direkt till inloggningen.
+    await router.replace("/login");
+  } catch (error) {
+    console.error("Kunde inte logga ut:", error);
+  }
 };
 </script>
 
