@@ -6,81 +6,93 @@
       <p class="intro">Fyll i uppgifterna nedan så flyttar vi ditt elavtal.</p>
 
       <form novalidate @submit.prevent="submit">
-        <div class="form-field">
-          <label for="move-address">Ny adress</label>
-          <input
-            id="move-address"
-            v-model.trim="form.address"
-            name="address"
-            type="text"
-            autocomplete="street-address"
-            required
-            :aria-invalid="Boolean(error)"
-            aria-describedby="move-error"
-          />
-        </div>
+        <KField
+          id="move-address"
+          v-model="form.address"
+          label="Ny adress"
+          name="address"
+          type="text"
+          autocomplete="street-address"
+          required
+          :error="fieldErrors.address"
+          @input="validateField('address')"
+          @blur="validateField('address')"
+        />
 
-        <div class="form-field">
-          <label for="move-zip">Postnummer</label>
-          <input
-            id="move-zip"
-            v-model.trim="form.zip"
-            name="zip"
-            type="text"
-            autocomplete="postal-code"
-            inputmode="numeric"
-            required
-            :aria-invalid="Boolean(error)"
-            aria-describedby="move-error"
-          />
-        </div>
+        <KField
+          id="move-zip"
+          v-model="form.zip"
+          label="Postnummer"
+          name="zip"
+          type="text"
+          inputmode="numeric"
+          autocomplete="postal-code"
+          maxlength="5"
+          pattern="[0-9]{5}"
+          required
+          :error="fieldErrors.zip"
+          @input="onZipInput"
+          @blur="validateField('zip')"
+        />
 
-        <div class="form-field">
-          <label for="move-city">Ort</label>
-          <input
-            id="move-city"
-            v-model.trim="form.city"
-            name="city"
-            type="text"
-            autocomplete="address-level2"
-            required
-            :aria-invalid="Boolean(error)"
-            aria-describedby="move-error"
-          />
-        </div>
+        <KField
+          id="move-city"
+          v-model="form.city"
+          label="Ort"
+          name="city"
+          type="text"
+          autocomplete="address-level2"
+          required
+          :error="fieldErrors.city"
+          @input="validateField('city')"
+          @blur="validateField('city')"
+        />
 
-        <div class="form-field">
-          <label for="move-date">Inflyttningsdatum</label>
-          <input
-            id="move-date"
-            v-model="form.date"
-            name="date"
-            type="date"
-            required
-            :aria-invalid="Boolean(error)"
-            aria-describedby="move-error"
-          />
-        </div>
+        <KField
+          id="move-date"
+          v-model="form.date"
+          label="Inflyttningsdatum"
+          name="date"
+          type="date"
+          :min="minimumMoveDate"
+          required
+          :error="fieldErrors.date"
+          @change="validateField('date')"
+          @blur="validateField('date')"
+        />
 
         <div class="form-field">
           <label for="move-contract">Avtal</label>
+
           <select
             id="move-contract"
             v-model="form.contract"
             name="contract"
             required
-            :aria-invalid="Boolean(error)"
-            aria-describedby="move-error"
+            :aria-invalid="fieldErrors.contract ? 'true' : undefined"
+            :aria-describedby="
+              fieldErrors.contract ? 'move-contract-error' : undefined
+            "
+            @change="validateField('contract')"
+            @blur="validateField('contract')"
           >
             <option disabled value="">Välj avtal</option>
             <option>Rörligt pris</option>
             <option>Fast pris 1 år</option>
             <option>Fast pris 3 år</option>
           </select>
+
+          <p
+            v-if="fieldErrors.contract"
+            id="move-contract-error"
+            class="error-message"
+          >
+            {{ fieldErrors.contract }}
+          </p>
         </div>
 
-        <p v-if="error" id="move-error" class="error-message" role="alert">
-          {{ error }}
+        <p v-if="submitError" class="error-message" role="alert">
+          {{ submitError }}
         </p>
 
         <KButton type="submit" :disabled="submitting">
@@ -98,8 +110,9 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { computed, reactive, ref } from "vue";
 import KButton from "../components/KButton.vue";
+import KField from "../components/KField.vue";
 import { submitMove } from "../services/api";
 
 const form = reactive({
@@ -110,36 +123,137 @@ const form = reactive({
   contract: "",
 });
 
+const fieldErrors = reactive({
+  address: "",
+  zip: "",
+  city: "",
+  date: "",
+  contract: "",
+});
+
 const reference = ref(null);
-const error = ref("");
+const submitError = ref("");
 const submitting = ref(false);
 
-const submit = async () => {
-  error.value = "";
+// Flyttdatumet måste vara minst 14 dagar framåt.
+const minimumMoveDate = computed(() => {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + 14);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+});
+
+function validateField(field) {
+  switch (field) {
+    case "address": {
+      const address = form.address.trim();
+
+      if (!address) {
+        fieldErrors.address = "Fyll i din nya adress.";
+      } else if (address.length < 4) {
+        fieldErrors.address = "Adressen måste innehålla minst 4 tecken.";
+      } else {
+        fieldErrors.address = "";
+      }
+      break;
+    }
+
+    case "zip": {
+      if (!form.zip) {
+        fieldErrors.zip = "Fyll i ditt postnummer.";
+      } else if (!/^\d{5}$/.test(form.zip)) {
+        fieldErrors.zip = "Postnumret ska innehålla exakt 5 siffror.";
+      } else {
+        fieldErrors.zip = "";
+      }
+      break;
+    }
+
+    case "city": {
+      const city = form.city.trim();
+
+      if (!city) {
+        fieldErrors.city = "Fyll i din ort.";
+      } else if (city.length < 4) {
+        fieldErrors.city = "Orten måste innehålla minst 4 tecken.";
+      } else {
+        fieldErrors.city = "";
+      }
+      break;
+    }
+
+    case "date": {
+      if (!form.date) {
+        fieldErrors.date = "Välj ett inflyttningsdatum.";
+      } else if (form.date < minimumMoveDate.value) {
+        fieldErrors.date =
+          "Inflyttningsdatumet måste vara minst 14 dagar framåt.";
+      } else {
+        fieldErrors.date = "";
+      }
+      break;
+    }
+
+    case "contract": {
+      if (!form.contract) {
+        fieldErrors.contract = "Välj ett avtal.";
+      } else {
+        fieldErrors.contract = "";
+      }
+      break;
+    }
+  }
+
+  return !fieldErrors[field];
+}
+
+function onZipInput(event) {
+  // Tillåt bara siffror och högst fem tecken.
+  const digits = event.target.value.replace(/\D/g, "").slice(0, 5);
+
+  form.zip = digits;
+  event.target.value = digits;
+
+  validateField("zip");
+}
+
+function validateForm() {
+  const fields = ["address", "zip", "city", "date", "contract"];
+  return fields.map(validateField).every(Boolean);
+}
+
+async function submit() {
+  submitError.value = "";
   reference.value = null;
 
-  if (
-    !form.address.trim() ||
-    !form.zip.trim() ||
-    !form.city.trim() ||
-    !form.date ||
-    !form.contract
-  ) {
-    error.value = "Fyll i alla uppgifter innan du skickar flyttanmälan.";
+  if (!validateForm()) {
+    submitError.value =
+      "Kontrollera fälten ovan och rätta de uppgifter som saknas.";
     return;
   }
 
   submitting.value = true;
 
   try {
-    const res = await submitMove({ ...form });
+    const res = await submitMove({
+      ...form,
+      address: form.address.trim(),
+      city: form.city.trim(),
+      zip: form.zip,
+    });
+
     reference.value = res.ref;
   } catch {
-    error.value = "Flyttanmälan kunde inte skickas. Försök igen senare.";
+    submitError.value = "Flyttanmälan kunde inte skickas. Försök igen senare.";
   } finally {
     submitting.value = false;
   }
-};
+}
 </script>
 
 <style scoped>
@@ -155,20 +269,21 @@ const submit = async () => {
   line-height: 1.5;
 }
 
-.form-field {
+.move-card :deep(.k-field) {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-bottom: 16px;
 }
 
+.move-card :deep(.k-field__label),
 .form-field label {
   color: #344054;
   font-size: 14px;
   font-weight: 600;
 }
 
-.form-field input,
+.move-card :deep(.k-field__input),
 .form-field select {
   width: 100%;
   min-height: 44px;
@@ -181,21 +296,28 @@ const submit = async () => {
   font: inherit;
 }
 
-.form-field input:focus-visible,
+.move-card :deep(.k-field__input:focus-visible),
 .form-field select:focus-visible {
   outline: 3px solid #243b9b;
   outline-offset: 2px;
 }
 
-.form-field input[aria-invalid="true"],
+.move-card :deep(.k-field__input[aria-invalid="true"]),
 .form-field select[aria-invalid="true"] {
   border-color: #b42318;
 }
 
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
 .error-message {
-  margin: 10px 0;
+  margin: 6px 0 10px;
   color: #b42318;
-  font-weight: 600;
+  font-size: 14px;
   line-height: 1.5;
 }
 
