@@ -1,45 +1,68 @@
 <template>
-  <div>
+  <main class="invoices-view">
     <h1>Fakturor</h1>
-    <div class="card">
-      <table>
-        <tr>
-          <th>Faktura</th>
-          <th>Period</th>
-          <th>Belopp</th>
-          <th>Förfaller</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-        <tr v-for="invoice in invoices" :key="invoice.id">
-          <td>{{ invoice.id }}</td>
-          <td>{{ invoice.period }}</td>
-          <td>{{ invoice.amount }} kr</td>
-          <td>{{ invoice.due }}</td>
-          <td>
-            <span
-              :class="[
-                'status-chip',
-                invoice.status === 'Betald'
-                  ? 'status-betald'
-                  : 'status-obetald',
-              ]"
-              >{{ invoice.status }}</span
-            >
-          </td>
-          <td>
-            <button
-              class="download"
-              type="button"
-              @click="downloadInvoice(invoice)"
-            >
-              Ladda ner
-            </button>
-          </td>
-        </tr>
-      </table>
-    </div>
-  </div>
+
+    <p v-if="loading" role="status" aria-live="polite">Laddar fakturor…</p>
+
+    <p v-else-if="error" class="error-message" role="alert">
+      {{ error }}
+    </p>
+
+    <section v-else class="card table-card" aria-label="Dina fakturor">
+      <p v-if="invoices.length === 0" role="status">
+        Det finns inga fakturor att visa.
+      </p>
+
+      <div v-else class="table-wrapper">
+        <table>
+          <caption>
+            Översikt över dina fakturor
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Faktura</th>
+              <th scope="col">Period</th>
+              <th scope="col">Belopp</th>
+              <th scope="col">Förfaller</th>
+              <th scope="col">Status</th>
+              <th scope="col">Åtgärd</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr v-for="invoice in invoices" :key="invoice.id">
+              <th scope="row">{{ invoice.id }}</th>
+              <td>{{ invoice.period }}</td>
+              <td>{{ invoice.amount }} kr</td>
+              <td>{{ invoice.due }}</td>
+              <td>
+                <span
+                  :class="[
+                    'status-chip',
+                    invoice.status === 'Betald'
+                      ? 'status-betald'
+                      : 'status-obetald',
+                  ]"
+                >
+                  {{ invoice.status }}
+                </span>
+              </td>
+              <td>
+                <button
+                  class="download"
+                  type="button"
+                  :aria-label="`Ladda ner faktura ${invoice.id}`"
+                  @click="downloadInvoice(invoice)"
+                >
+                  Ladda ner
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 </template>
 
 <script setup>
@@ -67,14 +90,91 @@ const downloadInvoice = (invoice) => {
 </script>
 
 <style scoped>
+.table-card {
+  min-width: 0;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+caption {
+  padding: 0 0 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+th,
+td {
+  padding: 12px;
+  border-bottom: 1px solid #d0d5dd;
+  vertical-align: middle;
+}
+
+thead th {
+  background: #f2f4f7;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+tbody th {
+  font-weight: 600;
+}
+
+.status-chip {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-betald {
+  color: #05603a;
+  background: #dcfae6;
+}
+
+.status-obetald {
+  color: #912018;
+  background: #fee4e2;
+}
+
 .download {
-  color: #2f54eb;
+  color: #243b9b;
   background: none;
   border: 0;
-  padding: 0;
+  border-radius: 3px;
+  padding: 6px 2px;
   font: inherit;
   font-size: 14px;
   text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.download:focus-visible {
+  outline: 3px solid #243b9b;
+  outline-offset: 3px;
+}
+
+.error-message {
+  color: #b42318;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  th,
+  td {
+    padding: 9px;
+    white-space: nowrap;
+  }
 }
 </style>

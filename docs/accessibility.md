@@ -142,7 +142,12 @@ Manuell kontroll behövs bland annat för att bedöma:
 
 Därför kompletteras axe med manuell tangentbordsnavigering och vid behov skärmläsartest.
 
-**Manuella kontroller som faktiskt genomfördes:** [Fyll i.]
+**Manuella kontroller som faktiskt genomfördes:**
+
+- Tangentbordsnavigering med Tab och Shift+Tab i inloggningsvyn.
+- Kontroll av synlig fokusmarkering på formulärfält och knappar.
+- Kontroll av färgkontrast i Storybooks Accessibility-flik.
+- Kvarstående kontrastproblem dokumenteras under Kända brister tills de har åtgärdats och verifierats.
 
 ## Kända brister
 
