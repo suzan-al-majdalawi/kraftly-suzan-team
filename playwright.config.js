@@ -6,7 +6,7 @@ export default defineConfig({
   reporter: [["html", { outputFolder: "playwright-report" }]],
 
   use: {
-    baseURL: "http://localhost:8080",
+    baseURL: "http://127.0.0.1:8080",
   },
 
   webServer: [
@@ -14,15 +14,17 @@ export default defineConfig({
       ? [
           {
             command: "npm run api",
-            url: "http://localhost:4000/healthz",
+            url: "http://127.0.0.1:4000/healthz",
             reuseExistingServer: true,
+            timeout: 60_000,
           },
         ]
       : []),
     {
-      command: "npm run dev",
-      url: "http://localhost:8080",
+      command: "npm run dev -- --host 127.0.0.1 --port 8080 --strictPort",
+      url: "http://127.0.0.1:8080",
       reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
     },
   ],
 });

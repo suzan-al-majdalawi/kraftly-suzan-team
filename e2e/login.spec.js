@@ -26,8 +26,8 @@ test("Här kan användaren logga in på systemet", async ({ page }) => {
 
   await page.getByRole("button", { name: "Logga in" }).click();
 
-  // Vänta på att inloggningen lyckas
-  await expect(page).toHaveURL("http://localhost:8080/", { timeout: 10000 });
+  // Kontrollera att användaren hamnar på startsidan
+  await expect(page).toHaveURL(/\/$/);
 
   await expect(page.getByText("Mina uppgifter")).toBeVisible();
 });
