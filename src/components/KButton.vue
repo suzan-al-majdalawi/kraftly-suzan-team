@@ -43,18 +43,23 @@ defineProps({
 
 .k-button--primary {
   background: #2f54eb;
-  color: #fff;
+  color: #ffffff;
 }
 
 .k-button--secondary {
   background: #eef1ff;
-  color: #2f54eb;
-  border-color: #2f54eb;
+  color: #243b9b;
+  border-color: #243b9b;
 }
 
 .k-button--success {
   background: #067647;
-  color: #fff;
+  color: #ffffff;
+}
+
+.k-button:focus-visible {
+  outline: 3px solid #111827;
+  outline-offset: 3px;
 }
 
 .k-button:disabled {

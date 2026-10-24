@@ -2,9 +2,10 @@
   <div class="login-wrap">
     <div class="card login-card">
       <img src="../assets/logo-dark.svg" class="login-logo" alt="Kraftly" />
+
       <h1>Logga in på Mina sidor</h1>
 
-      <p v-if="loading">Loggar in...</p>
+      <p v-if="loading" role="status" aria-live="polite">Loggar in...</p>
 
       <form @submit.prevent="handleLogin">
         <label for="email">E-postadress</label>
@@ -12,9 +13,12 @@
           id="email"
           v-model.trim="email"
           type="email"
+          name="email"
           autocomplete="username"
           placeholder="E-postadress"
           required
+          :aria-invalid="Boolean(error)"
+          :aria-describedby="error ? 'login-error' : undefined"
         />
 
         <label for="password">Lösenord</label>
@@ -22,12 +26,15 @@
           id="password"
           v-model="password"
           type="password"
+          name="password"
           autocomplete="current-password"
           placeholder="Lösenord"
           required
+          :aria-invalid="Boolean(error)"
+          :aria-describedby="error ? 'login-error' : undefined"
         />
 
-        <p v-if="error" role="alert" class="error">
+        <p v-if="error" id="login-error" role="alert" class="error">
           {{ error }}
         </p>
 
@@ -35,15 +42,13 @@
           variant="primary"
           type="submit"
           :disabled="loading"
-          style="width: 100%"
+          class="login-button"
         >
           {{ loading ? "Loggar in..." : "Logga in" }}
         </KButton>
       </form>
 
-      <p class="hint" style="margin-top: 10px">
-        Problem att logga in? Ring kundservice 020-123 456
-      </p>
+      <p class="hint">Problem att logga in? Ring kundservice 020-123 456</p>
     </div>
   </div>
 </template>
@@ -71,6 +76,7 @@ const handleLogin = async () => {
     await router.push("/");
   } catch (e) {
     console.error("Login failed:", e);
+
     error.value = e.message?.startsWith("API error")
       ? "Kunde inte kontakta inloggningstjänsten."
       : e.message ||
@@ -85,7 +91,7 @@ const handleLogin = async () => {
 .login-wrap {
   display: flex;
   justify-content: center;
-  padding: 60px 0;
+  padding: 60px 16px;
   background: linear-gradient(180deg, #f5f7fa 0%, #e4e9f2 100%);
   border-top: 1px solid #e4e9f2;
 }
@@ -97,11 +103,56 @@ const handleLogin = async () => {
 
 .login-logo {
   height: 34px;
+  max-width: 100%;
   margin-bottom: 18px;
+}
+
+.login-card label {
+  display: block;
+  margin: 16px 0 6px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.login-card input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #667085;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2937;
+  font: inherit;
+}
+
+.login-card input:focus-visible {
+  outline: 3px solid #243b9b;
+  outline-offset: 2px;
+  border-color: #243b9b;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 18px;
 }
 
 .error {
   color: #b42318;
   margin: 12px 0;
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: 16px;
+  color: #344054;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card * {
+    scroll-behavior: auto;
+  }
 }
 </style>
