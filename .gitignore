@@ -5,3 +5,5 @@ dist
 # Hemligheter och lokal konfiguration – aldrig i repot
 .env
 .env.local
+
+storybook-static/
