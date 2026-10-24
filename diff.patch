@@ -1,0 +1,15 @@
+diff --git a/src/services/api.test.js b/src/services/api.test.js
+index 6781e3f..1c1a1e3 100644
+--- a/src/services/api.test.js
++++ b/src/services/api.test.js
+@@ -3,6 +3,12 @@
+ import { fetchInvoices, login, logout, AuthError } from './api'
+ import { getAccessToken, setAccessToken } from './token'
+
+ // fetch mockas: vi bestämmer vad "API:t" svarar och tittar på vad klienten skickar.
++
++// Testdata: påhittade värden. Testerna behöver bara strängar som går att skilja åt –
++// inga riktiga nycklar, ingen riktig JWT. Samlade här så att ingen behöver gissa vad de är.
++const TEST_TOKEN = 'test-token-abc'
++const OLD_TOKEN = 'test-token-gammal'
++const NEW_TOKEN = 'test-token-ny'
