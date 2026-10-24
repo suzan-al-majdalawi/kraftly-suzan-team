@@ -1,6 +1,6 @@
-# Daily standup – Suzan Al Majdalawi
+# Daily Standup – Suzan Al Majdalawi
 
-**Datum:** 2026-08-28, 2026-09-01 och 2026-09-14
+## Datum: 2026-08-28, 2026-09-01, 2026-09-14 och 2026-10-25
 
 ## 2026-08-28 och 2026-09-01
 
@@ -82,4 +82,69 @@ Jag, Suzan Al Majdalawi, arbetade med README, Docker-dokumentationen, containers
 
 Jag använde ChatGPT som stöd när jag behövde förstå tekniska problem, kontrollera Docker-konfigurationen och diskutera olika lösningar. Jag genomförde själv ändringarna i projektet och kontrollerade att de fungerade.
 
-M3 är nu färdig och alla kontroller är gröna. Projektet är testat från `main` och fungerar med Docker. Nästa steg är därför att skapa och pusha taggen `M3`.
+M3 är färdig enligt mina tidigare anteckningar. Nästa steg var att skapa och pusha taggen `M3`.
+
+---
+
+## 2026-10-25 – M9: Reusable Form Components and Accessibility
+
+### Vad har jag gjort sedan senast?
+
+Jag har arbetat vidare med M9 och skapat den återanvändbara komponenten `KField.vue` för formulär i Kraftly-projektet.
+
+Komponenten stöder etiketter, hjälptexter, felmeddelanden, `v-model` och vanliga attribut för HTML-inputfält. Jag har integrerat den i `LoginView.vue`, `ProfileView.vue` och `MoveFormView.vue`.
+
+Jag har även skapat Storybook-stories för ett standardfält, ett fält med hjälptext och ett fält med felmeddelande. Dessutom har jag arbetat med valideringen i flyttformuläret så att användaren får tydliga felmeddelanden när uppgifter saknas eller är felaktiga.
+
+Jag har lagt till tillgänglighetstester för `KField`. Just nu innehåller `src/components/KField.a11y.test.js` två tester. De två återstående planerade testerna är inte implementerade ännu och kommer att kompletteras senare.
+
+Jag har också granskat GitHub Actions-konfigurationerna för CI/CD och identifierat att Storybook-bygget och uppladdningen av dess artifact behöver verifieras i GitHub Actions.
+
+### Vad ska jag göra härnäst?
+
+Jag ska fortsätta med M9 genom att komplettera tillgänglighetstesterna och kontrollera att felmeddelanden är korrekt kopplade till respektive formulärfält.
+
+Jag ska också säkerställa att CI/CD-workflowen bygger Storybook och laddar upp `storybook-static` som ett artifact. Därefter ska jag kontrollera resultatet i GitHub Actions och verifiera att de obligatoriska statuskontrollerna är korrekt konfigurerade.
+
+### Några hinder – vad var svårt?
+
+En viktig del av arbetet är att säkerställa att formulär inte bara fungerar visuellt, utan även är tillgängliga för användare som använder hjälpmedel. Felmeddelanden måste vara tydligt kopplade till rätt inmatningsfält och fält med fel måste exponera sin status korrekt.
+
+Jag stötte också på ett tillfälligt Windows-fel (`EPERM`) vid installation av npm-paket eftersom `esbuild.exe` inte kunde tas bort. Efter att ha hanterat problemet lyckades `npm ci` köras.
+
+### Vad gjorde teamet?
+
+Det här arbetet har främst genomförts individuellt inom M9. Fokus har varit återanvändbara formulärkomponenter, tillgänglighet, Storybook och automatiserade kontroller.
+
+### Vem gjorde vad?
+
+Jag, Suzan Al Majdalawi, arbetade med `KField.vue`, integrationen i formulärvyerna, Storybook-stories och de inledande tillgänglighetstesterna. Jag granskade även CI/CD-workflowen och körde projektets test- och byggkommandon lokalt.
+
+Jag använde ChatGPT som stöd för att förstå tekniska fel, diskutera tillgänglighetskrav och granska möjliga lösningar. Jag genomförde ändringarna i projektet och kontrollerade resultaten i min lokala utvecklingsmiljö.
+
+### Lokal verifiering
+
+Följande kommandon kördes framgångsrikt lokalt:
+
+- `npm ci`
+- `npm run test:a11y`
+- `npm run test:run`
+- `npm run build`
+- `npm run build-storybook`
+
+Detta bekräftar de lokala kontrollerna, men innebär inte i sig att GitHub Actions eller distributionen till staging och produktion har verifierats.
+
+### Kvarstående arbete
+
+- [ ] Komplettera de två återstående planerade `KField`-tillgänglighetstesterna.
+- [ ] Implementera eller slutföra tillgänglighetstestet för `MoveFormView`.
+- [ ] Verifiera att samtliga relevanta tester passerar.
+- [ ] Säkerställa att CI/CD bygger Storybook och laddar upp `storybook-static` som artifact.
+- [ ] Kontrollera att GitHub Actions-jobben lyckas på en Pull Request.
+- [ ] Verifiera att obligatoriska statuskontroller är korrekt konfigurerade.
+
+### Aktuell status
+
+**M9 pågår fortfarande.**
+
+Den återanvändbara `KField`-komponenten, dess Storybook-stories och två tillgänglighetstester finns på plats. Ytterligare tester och verifiering av CI/CD återstår innan milstolpen kan betraktas som färdig.
