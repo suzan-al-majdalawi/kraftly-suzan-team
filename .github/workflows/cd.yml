@@ -34,11 +34,32 @@ jobs:
       - run: npm run test:run
       - run: npm run build
 
+  storybook:
+    name: Storybook build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build-storybook
+
+      - name: Spara Storybook som artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-static
+          path: storybook-static/
+          if-no-files-found: error
 
   publish:
     name: Image → GHCR
     runs-on: ubuntu-latest
-    needs: verify
+    needs: [verify, storybook]
 
     permissions:
       contents: read

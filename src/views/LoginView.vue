@@ -8,30 +8,27 @@
       <p v-if="loading" role="status" aria-live="polite">Loggar in...</p>
 
       <form @submit.prevent="handleLogin">
-        <label for="email">E-postadress</label>
-        <input
+        <KField
           id="email"
-          v-model.trim="email"
+          v-model="email"
+          label="E-postadress"
           type="email"
           name="email"
           autocomplete="username"
           placeholder="E-postadress"
           required
-          :aria-invalid="Boolean(error)"
-          :aria-describedby="error ? 'login-error' : undefined"
+          :error="error"
         />
 
-        <label for="password">Lösenord</label>
-        <input
+        <KField
           id="password"
           v-model="password"
+          label="Lösenord"
           type="password"
           name="password"
           autocomplete="current-password"
           placeholder="Lösenord"
           required
-          :aria-invalid="Boolean(error)"
-          :aria-describedby="error ? 'login-error' : undefined"
         />
 
         <p v-if="error" id="login-error" role="alert" class="error">
@@ -58,6 +55,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { login } from "../services/api";
 import KButton from "../components/KButton.vue";
+import KField from "../components/KField.vue";
 
 const email = ref("");
 const password = ref("");
@@ -72,7 +70,7 @@ const handleLogin = async () => {
   loading.value = true;
 
   try {
-    await login(email.value, password.value);
+    await login(email.value.trim(), password.value);
     await router.push("/");
   } catch (e) {
     console.error("Login failed:", e);
@@ -107,14 +105,18 @@ const handleLogin = async () => {
   margin-bottom: 18px;
 }
 
-.login-card label {
+.login-card :deep(.k-field) {
+  margin-top: 16px;
+}
+
+.login-card :deep(.k-field__label) {
   display: block;
-  margin: 16px 0 6px;
+  margin: 0 0 6px;
   color: #1f2937;
   font-weight: 600;
 }
 
-.login-card input {
+.login-card :deep(.k-field__input) {
   display: block;
   box-sizing: border-box;
   width: 100%;
@@ -127,7 +129,7 @@ const handleLogin = async () => {
   font: inherit;
 }
 
-.login-card input:focus-visible {
+.login-card :deep(.k-field__input:focus-visible) {
   outline: 3px solid #243b9b;
   outline-offset: 2px;
   border-color: #243b9b;
