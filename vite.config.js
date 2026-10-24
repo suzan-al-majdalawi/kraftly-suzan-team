@@ -2,9 +2,8 @@ import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 
 export default defineConfig(({ mode }) => {
-  // Läser .env (och variabler som redan är satta i terminalen/CI). Tredje argumentet ''
-  // betyder "alla variabler, inte bara VITE_*". De används bara här, i Node – de hamnar
-  // aldrig i koden som skickas till browsern. Det gör bara VITE_-variabler.
+  // Läser .env. Tredje argumentet '' = alla variabler, inte bara VITE_*. De används bara
+  // här, i Node – de hamnar aldrig i koden som skickas till browsern.
   const env = loadEnv(mode, process.cwd(), "");
 
   // /api → mock-API:t med nyckeln påsatt – samma jobb som nginx gör i containern
@@ -21,10 +20,9 @@ export default defineConfig(({ mode }) => {
     server: { proxy: apiProxy },
     preview: { proxy: apiProxy },
     test: {
-      globals: true, // krävs för att Testing Library ska städa DOM:en mellan tester
+      globals: true,
       environment: "jsdom",
       setupFiles: ["./tests/setup.js"],
-      include: ["src/**/*.test.js"], // Playwright-filerna i e2e/ och API-testerna i mock-api/ körs inte av Vitest
     },
   };
 });
