@@ -28,9 +28,13 @@
             >
           </td>
           <td>
-            <div class="download" @click="downloadInvoice(invoice)">
+            <button
+              class="download"
+              type="button"
+              @click="downloadInvoice(invoice)"
+            >
               Ladda ner
-            </div>
+            </button>
           </td>
         </tr>
       </table>
@@ -65,7 +69,12 @@ const downloadInvoice = (invoice) => {
 <style scoped>
 .download {
   color: #2f54eb;
-  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
   font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

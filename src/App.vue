@@ -11,7 +11,7 @@
           <RouterLink to="/fakturor">Fakturor</RouterLink>
           <RouterLink to="/flytt">Flyttanmälan</RouterLink>
           <RouterLink to="/profil">Mina uppgifter</RouterLink>
-          <span class="logout" @click="logout">Logga ut</span>
+          <button class="logout" type="button" @click="logout">Logga ut</button>
         </nav>
       </div>
     </header>
@@ -56,6 +56,13 @@ const logout = () => {
   font-size: 14.5px;
   cursor: pointer;
 }
+
+.logout {
+  background: none;
+  border: 0;
+  font-family: inherit;
+}
+
 .topbar nav a.router-link-active {
   color: #fff;
   font-weight: 600;

@@ -31,14 +31,14 @@
           {{ error }}
         </p>
 
-        <button
-          class="btn"
-          style="width: 100%"
+        <KButton
+          variant="primary"
           type="submit"
           :disabled="loading"
+          style="width: 100%"
         >
           {{ loading ? "Loggar in..." : "Logga in" }}
-        </button>
+        </KButton>
       </form>
 
       <p class="hint" style="margin-top: 10px">
@@ -52,6 +52,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { login } from "../services/api";
+import KButton from "../components/KButton.vue";
 
 const email = ref("");
 const password = ref("");

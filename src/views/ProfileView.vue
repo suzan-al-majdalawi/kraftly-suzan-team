@@ -1,25 +1,25 @@
 <template>
   <div>
     <h1>Mina uppgifter</h1>
-    <div class="card" style="max-width: 560px" v-if="store.user">
+    <div v-if="store.user" class="card" style="max-width: 560px">
       <div class="field">
         <span class="field-label">Kundnummer</span>
         <span>{{ store.user.customerNo }}</span>
       </div>
-      <input type="text" v-model="name" />
-      <input type="text" v-model="email" />
-      <input type="text" v-model="address" />
-      <AppButton color="#12b76a" @click="save">Spara ändringar</AppButton>
-      <button class="button-secondary" style="margin-left: 10px" @click="reset">
+      <input v-model="name" type="text" />
+      <input v-model="email" type="text" />
+      <input v-model="address" type="text" />
+      <KButton variant="success" @click="save">Spara ändringar</KButton>
+      <KButton variant="secondary" style="margin-left: 10px" @click="reset">
         Ångra
-      </button>
+      </KButton>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from "vue";
-import AppButton from "../components/AppButton.vue";
+import KButton from "../components/KButton.vue";
 import { useUserStore } from "../stores/user";
 
 const store = useUserStore();
