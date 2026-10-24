@@ -13,7 +13,8 @@ jobs:
 
     env:
       API_KEY: e2e-testnyckel
-
+      JWT_SECRET: ci-only-test-secret-not-for-production
+      
     steps:
       - uses: actions/checkout@v4
 
