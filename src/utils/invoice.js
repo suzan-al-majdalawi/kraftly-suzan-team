@@ -1,10 +1,15 @@
-export function invoiceStatus(invoice, today) {
+export const invoiceStatus = (invoice, today = new Date()) => {
   if (invoice.status === "Betald") {
     return "Betald";
   }
 
-  const [year, month, day] = invoice.due.split("-");
-  const dueDate = new Date(Number(year), Number(month) - 1, Number(day));
+  if (!invoice.due) {
+    return "Obetald";
+  }
+
+  const [year, month, day] = invoice.due.split("-").map(Number);
+
+  const dueDate = new Date(year, month - 1, day);
 
   const todayDate = new Date(
     today.getFullYear(),
@@ -12,9 +17,9 @@ export function invoiceStatus(invoice, today) {
     today.getDate(),
   );
 
-  if (invoice.status === "Obetald" && dueDate < todayDate) {
+  if (dueDate < todayDate) {
     return "Förfallen";
   }
 
   return "Obetald";
-}
+};

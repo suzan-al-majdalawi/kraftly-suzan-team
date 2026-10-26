@@ -25,7 +25,7 @@
               <th scope="col">Belopp</th>
               <th scope="col">Förfaller</th>
               <th scope="col">Status</th>
-              <th scope="col">Åtgärd</th>
+              <th scope="col"><span class="visually-hidden">Åtgärd</span></th>
             </tr>
           </thead>
 
@@ -35,27 +35,13 @@
               <td>{{ invoice.period }}</td>
               <td>{{ invoice.amount }} kr</td>
               <td>{{ invoice.due }}</td>
+              <td><StatusChip :invoice="invoice" /></td>
               <td>
-                <span
-                  :class="[
-                    'status-chip',
-                    invoice.status === 'Betald'
-                      ? 'status-betald'
-                      : 'status-obetald',
-                  ]"
-                >
-                  {{ invoice.status }}
-                </span>
-              </td>
-              <td>
-                <button
-                  class="download"
-                  type="button"
-                  :aria-label="`Ladda ner faktura ${invoice.id}`"
-                  @click="downloadInvoice(invoice)"
-                >
+                <!-- "Ladda ner" står på varje rad. Den dolda texten gör att en skärmläsare hör vilken faktura. -->
+                <KButton variant="secondary" @click="downloadInvoice(invoice)">
                   Ladda ner
-                </button>
+                  <span class="visually-hidden">faktura {{ invoice.id }}</span>
+                </KButton>
               </td>
             </tr>
           </tbody>
@@ -68,6 +54,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { fetchInvoices } from "../services/api";
+import StatusChip from "../components/StatusChip.vue";
+import KButton from "../components/KButton.vue";
 
 const invoices = ref([]);
 const loading = ref(true);
