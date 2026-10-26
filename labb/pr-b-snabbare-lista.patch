@@ -1,0 +1,93 @@
+diff --git a/package-lock.json b/package-lock.json
+index 6290e23..1095f34 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -11,6 +11,7 @@
+         "chart.js": "^4.4.7",
+         "express": "^4.21.2",
+         "jsonwebtoken": "^9.0.3",
++        "lodash": "^4.18.1",
+         "pinia": "^2.3.0",
+         "vue": "^3.5.13",
+         "vue-router": "^4.5.0"
+@@ -6098,7 +6099,6 @@
+       "version": "4.18.1",
+       "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.18.1.tgz",
+       "integrity": "sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==",
+-      "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/lodash.includes": {
+diff --git a/package.json b/package.json
+index d4d6143..1bb61c0 100644
+--- a/package.json
++++ b/package.json
+@@ -20,6 +20,7 @@
+     "chart.js": "^4.4.7",
+     "express": "^4.21.2",
+     "jsonwebtoken": "^9.0.3",
++    "lodash": "^4.18.1",
+     "pinia": "^2.3.0",
+     "vue": "^3.5.13",
+     "vue-router": "^4.5.0"
+diff --git a/src/views/InvoicesView.vue b/src/views/InvoicesView.vue
+index 5c247ec..f632c41 100644
+--- a/src/views/InvoicesView.vue
++++ b/src/views/InvoicesView.vue
+@@ -2,6 +2,8 @@
+   <div>
+     <h1>Fakturor</h1>
+     <p v-if="error" role="alert" class="error">{{ error }}</p>
++    <!-- Kunden ska se att listan är förkortad, inte tro att fakturor saknas -->
++    <p v-if="invoices.length" class="hint">Visar {{ visibleInvoices.length }} av {{ invoices.length }} fakturor, senaste först.</p>
+     <div class="card">
+       <table>
+         <caption class="visually-hidden">Dina fakturor</caption>
+@@ -17,7 +19,7 @@
+           </tr>
+         </thead>
+         <tbody>
+-          <tr v-for="invoice in invoices" :key="invoice.id">
++          <tr v-for="invoice in visibleInvoices" :key="invoice.id">
+             <td>{{ invoice.id }}</td>
+             <td>{{ invoice.period }}</td>
+             <td>{{ invoice.amount }} kr</td>
+@@ -32,12 +34,16 @@
+           </tr>
+         </tbody>
+       </table>
++      <div v-if="!showAll && invoices.length > PAGE_SIZE" class="btn show-all" @click="showAll = true">
++        Visa alla {{ invoices.length }} fakturor
++      </div>
+     </div>
+   </div>
+ </template>
+ 
+ <script setup>
+-import { ref, onMounted } from 'vue'
++import { ref, computed, onMounted } from 'vue'
++import _ from 'lodash'
+ import { fetchInvoices } from '../services/api'
+ import StatusChip from '../components/StatusChip.vue'
+ import KButton from '../components/KButton.vue'
+@@ -45,6 +51,14 @@ import KButton from '../components/KButton.vue'
+ const invoices = ref([])
+ const error = ref(null)
+ 
++// Snabbare lista: sortera en gång och rendera bara de senaste tills kunden ber om fler
++const PAGE_SIZE = 6
++const showAll = ref(false)
++const sortedInvoices = computed(() => _.orderBy(invoices.value, ['due'], ['desc']))
++const visibleInvoices = computed(() =>
++  showAll.value ? sortedInvoices.value : _.take(sortedInvoices.value, PAGE_SIZE)
++)
++
+ onMounted(async () => {
+   try {
+     invoices.value = await fetchInvoices()
+@@ -62,4 +76,5 @@ const downloadInvoice = (invoice) => {
+ 
+ <style scoped>
+ .error { color: #d92d20; margin-bottom: 12px; }
++.show-all { margin-top: 12px; color: #2f54eb; font-weight: 600; cursor: pointer; }
+ </style>

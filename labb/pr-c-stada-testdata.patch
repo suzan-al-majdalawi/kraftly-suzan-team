@@ -1,0 +1,77 @@
+diff --git a/src/services/api.test.js b/src/services/api.test.js
+index 6781e3f..1c1a1e3 100644
+--- a/src/services/api.test.js
++++ b/src/services/api.test.js
+@@ -3,6 +3,12 @@ import { fetchInvoices, login, logout, AuthError } from './api'
+ import { getAccessToken, setAccessToken } from './token'
+ 
+ // fetch mockas: vi bestämmer vad "API:t" svarar och tittar på vad klienten skickar.
++
++// Testdata: påhittade värden. Testerna behöver bara strängar som går att skilja åt –
++// inga riktiga nycklar, ingen riktig JWT. Samlade här så att ingen behöver gissa vad de är.
++const TEST_TOKEN = 'test-token-abc'
++const OLD_TOKEN = 'test-token-gammal'
++const NEW_TOKEN = 'test-token-ny'
+ const jsonResponse = (status, body) =>
+   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+ 
+@@ -14,10 +20,10 @@ afterEach(() => vi.unstubAllGlobals())
+ 
+ describe('login', () => {
+   it('sparar access token i minnet – inte i localStorage', async () => {
+-    fetch.mockResolvedValueOnce(jsonResponse(200, { accessToken: 'abc.def.ghi', expiresIn: 600, name: 'Anna Andersson' }))
++    fetch.mockResolvedValueOnce(jsonResponse(200, { accessToken: TEST_TOKEN, expiresIn: 600, name: 'Anna Andersson' }))
+     const data = await login('anna.andersson@example.com', 'kraftly-anna')
+     expect(data.name).toBe('Anna Andersson')
+-    expect(getAccessToken()).toBe('abc.def.ghi')
++    expect(getAccessToken()).toBe(TEST_TOKEN)
+     expect(localStorage.getItem('kraftly_token')).toBeNull()
+     expect(Object.keys(localStorage)).toHaveLength(0)
+   })
+@@ -31,31 +37,31 @@ describe('login', () => {
+ 
+ describe('skyddade anrop', () => {
+   it('skickar token som Bearer-header till /api/v2', async () => {
+-    setAccessToken('jwt-123')
++    setAccessToken(TEST_TOKEN)
+     fetch.mockResolvedValueOnce(jsonResponse(200, []))
+     await fetchInvoices()
+     const [url, options] = fetch.mock.calls[0]
+     expect(url).toBe('/api/v2/invoices')
+-    expect(options.headers.Authorization).toBe('Bearer jwt-123')
++    expect(options.headers.Authorization).toBe(`Bearer ${TEST_TOKEN}`)
+     expect(options.credentials).toBe('same-origin')
+   })
+ 
+   it('401 → refresh → anropet görs om med den nya token', async () => {
+-    setAccessToken('gammal')
++    setAccessToken(OLD_TOKEN)
+     fetch
+       .mockResolvedValueOnce(jsonResponse(401, { error: 'utgången' })) // första försöket
+-      .mockResolvedValueOnce(jsonResponse(200, { accessToken: 'ny', expiresIn: 600, name: 'Anna' })) // refresh
++      .mockResolvedValueOnce(jsonResponse(200, { accessToken: NEW_TOKEN, expiresIn: 600, name: 'Anna' })) // refresh
+       .mockResolvedValueOnce(jsonResponse(200, [{ id: 'F-1' }])) // omtaget
+ 
+     const invoices = await fetchInvoices()
+     expect(invoices).toEqual([{ id: 'F-1' }])
+     expect(fetch).toHaveBeenCalledTimes(3)
+     expect(fetch.mock.calls[1][0]).toBe('/api/v2/auth/refresh')
+-    expect(fetch.mock.calls[2][1].headers.Authorization).toBe('Bearer ny')
++    expect(fetch.mock.calls[2][1].headers.Authorization).toBe(`Bearer ${NEW_TOKEN}`)
+   })
+ 
+   it('401 och misslyckad refresh → AuthError, token tömd, ingen oändlig loop', async () => {
+-    setAccessToken('gammal')
++    setAccessToken(OLD_TOKEN)
+     fetch.mockResolvedValueOnce(jsonResponse(401, {})).mockResolvedValueOnce(jsonResponse(401, {}))
+     await expect(fetchInvoices()).rejects.toBeInstanceOf(AuthError)
+     expect(getAccessToken()).toBeNull()
+@@ -65,7 +71,7 @@ describe('skyddade anrop', () => {
+ 
+ describe('logout', () => {
+   it('tömmer token även om servern inte svarar', async () => {
+-    setAccessToken('jwt-123')
++    setAccessToken(TEST_TOKEN)
+     fetch.mockRejectedValueOnce(new Error('nätverk nere'))
+     await expect(logout()).rejects.toThrow()
+     expect(getAccessToken()).toBeNull()

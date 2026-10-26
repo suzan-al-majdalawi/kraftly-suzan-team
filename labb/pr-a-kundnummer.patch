@@ -1,0 +1,79 @@
+diff --git a/src/services/api.js b/src/services/api.js
+index 07eb221..c284735 100644
+--- a/src/services/api.js
++++ b/src/services/api.js
+@@ -84,6 +84,9 @@ export const fetchConsumption = () => request('/consumption')
+ 
+ export const fetchInvoices = () => request('/invoices')
+ 
++// Kundnummer + en enskild faktura. Kundtjänst länkar hit från sina mejl: /?customerNo=100234
++export const fetchInvoiceFor = (customerNo, id) => request(`/customers/${customerNo}/invoices/${id}`)
++
+ export const submitMove = (data) => request('/move', { method: 'POST', body: JSON.stringify(data) })
+ 
+ export const saveUser = (data) => request('/user', { method: 'PUT', body: JSON.stringify(data) })
+diff --git a/src/views/DashboardView.vue b/src/views/DashboardView.vue
+index 06b2532..469e9f3 100644
+--- a/src/views/DashboardView.vue
++++ b/src/views/DashboardView.vue
+@@ -35,6 +35,14 @@
+ 
+     <NorwayNotice />
+ 
++    <div v-if="latestInvoice" class="card">
++      <h2>Senaste faktura</h2>
++      <p>Kundnummer: <strong>{{ customerNo }}</strong></p>
++      <p>{{ latestInvoice.id }} · {{ latestInvoice.amount }} kr · förfaller {{ latestInvoice.due }}</p>
++      <!-- Meddelandet kommer färdigformaterat från API:t (fetstil, länkar) -->
++      <div class="kraftly-message" v-html="latestInvoice.message"></div>
++    </div>
++
+     <div class="card">
+       <h2>Spartips just nu</h2>
+       <p>Elpriset är som högst mellan 07–09 och 17–20. Flytta tvätt och diskmaskin till natten så kan du sänka din kostnad med upp till 15 %.</p>
+@@ -45,7 +53,9 @@
+ 
+ <script setup>
+ // Dashboard. Got a bit big, clean up some day /M
+-import { computed, onMounted, onBeforeUnmount } from 'vue'
++import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
++import { useRoute } from 'vue-router'
++import { fetchInvoiceFor } from '../services/api'
+ import { formatPrice } from '../utils/price'
+ import { debounce } from '../utils/debounce'
+ import { useUserStore } from '../stores/user'
+@@ -56,6 +66,20 @@ import KButton from '../components/KButton.vue'
+ 
+ const userStore = useUserStore()
+ const consumptionStore = useConsumptionStore()
++const route = useRoute()
++
++// Kundnumret kommer med i länken, så att kundtjänst kan skicka rätt kund till rätt faktura
++const customerNo = computed(() => route.query.customerNo)
++const latestInvoice = ref(null)
++
++const loadLatestInvoice = async () => {
++  try {
++    if (!customerNo.value) return // bara när länken har ett kundnummer
++    latestInvoice.value = await fetchInvoiceFor(customerNo.value, 'senaste')
++  } catch {
++    latestInvoice.value = null
++  }
++}
+ 
+ const latestMonth = computed(() => {
+   var d = consumptionStore.data
+@@ -70,6 +94,7 @@ const onResize = debounce(() => console.log('resize', window.innerWidth), 300)
+ onMounted(() => {
+   userStore.load()
+   consumptionStore.load()
++  loadLatestInvoice()
+   window.addEventListener('resize', onResize)
+ })
+ 
+@@ -88,4 +113,5 @@ const showTips = () => {
+ .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+ .stat-label { font-size: 13px; color: #5c6679; margin-bottom: 6px; }
+ .stat-value { font-size: 26px; font-weight: 700; }
++.kraftly-message { margin-top: 12px; padding: 12px; background: #f4f6fb; border-radius: 8px; }
+ </style>
