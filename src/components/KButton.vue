@@ -1,5 +1,6 @@
 <template>
   <button
+    v-bind="$attrs"
     class="k-button"
     :class="`k-button--${variant}`"
     :type="type"
@@ -10,6 +11,10 @@
 </template>
 
 <script setup>
+defineOptions({
+  inheritAttrs: false,
+});
+
 defineProps({
   variant: {
     type: String,
