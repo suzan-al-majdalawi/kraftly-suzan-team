@@ -1,0 +1,17 @@
+flowchart LR
+    A["Pull Request eller push till main"] --> B["Verifiering: applikationstester"] & C["Bygg Storybook"]
+    B --> D["Vänta på att testerna godkänns"]
+    C --> E["Spara Storybook-artefakten"]
+    D --> F{"Är ändringarna mergade till main?"}
+    E --> F
+    F -- Nej, Pull Request --> G["CI avslutas"]
+    F -- Ja --> H["Bygg Docker-image"]
+    H --> I["Publicera image till GHCR"]
+    I --> J["Distribuera till staging"]
+    J --> K["Verifiera version.txt mot commitens SHA"]
+    K --> L{"Lyckades staging?"}
+    L -- Nej --> M["Stoppa distributionen och undersök felet"]
+    L -- Ja --> N["Distribuera till produktion"]
+    N --> O["Verifiera version.txt"]
+    O --> P["Kontrollera att FEATURE_NORWAY = false"]
+    P --> Q["Distributionen slutförd"]

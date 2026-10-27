@@ -52,6 +52,9 @@
 
       <p class="hint">Källa: din elmätare. Uppdateras varje dygn.</p>
     </section>
+
+    <!-- Information för Norge -->
+    <NorwayNotice />
   </main>
 </template>
 

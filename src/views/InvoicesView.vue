@@ -2,6 +2,13 @@
   <main class="invoices-view">
     <h1>Fakturor</h1>
 
+    <KAlert
+      :show="showAlert"
+      :message="alertMessage"
+      variant="info"
+      @close="closeAlert"
+    />
+
     <p v-if="loading" role="status" aria-live="polite">Laddar fakturor…</p>
 
     <p v-else-if="error" class="error-message" role="alert">
@@ -18,6 +25,7 @@
           <caption>
             Översikt över dina fakturor
           </caption>
+
           <thead>
             <tr>
               <th scope="col">Faktura</th>
@@ -35,12 +43,24 @@
               <td>{{ invoice.period }}</td>
               <td>{{ invoice.amount }} kr</td>
               <td>{{ invoice.due }}</td>
-              <td><StatusChip :invoice="invoice" /></td>
+
               <td>
-                <!-- "Ladda ner" står på varje rad. Den dolda texten gör att en skärmläsare hör vilken faktura. -->
-                <KButton variant="secondary" @click="downloadInvoice(invoice)">
+                <KStatus :status="invoice.status" />
+              </td>
+
+              <td>
+                <KButton
+                  :ref="(el) => setButtonRef(invoice.id, el)"
+                  variant="primary"
+                  class="download"
+                  :class="{
+                    'download--active': activeInvoiceId === invoice.id,
+                  }"
+                  type="button"
+                  :aria-label="`Ladda ner faktura ${invoice.id}`"
+                  @click="downloadInvoice(invoice)"
+                >
                   Ladda ner
-                  <span class="visually-hidden">faktura {{ invoice.id }}</span>
                 </KButton>
               </td>
             </tr>
@@ -52,10 +72,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import { fetchInvoices } from "../services/api";
-import StatusChip from "../components/StatusChip.vue";
 import KButton from "../components/KButton.vue";
+import KAlert from "../components/KAlert.vue";
+import KStatus from "../components/KStatus.vue";
+
+const showAlert = ref(false);
+const alertMessage = ref("");
+const activeInvoiceId = ref(null);
+
+const buttonRefs = new Map();
 
 const invoices = ref([]);
 const loading = ref(true);
@@ -71,9 +98,36 @@ onMounted(async () => {
   }
 });
 
-const downloadInvoice = (invoice) => {
-  console.log("download", invoice.id);
-  alert("Nedladdning kommer snart");
+// Spara referensen till varje nedladdningsknapp.
+const setButtonRef = (invoiceId, component) => {
+  if (component) {
+    buttonRefs.set(invoiceId, component.$el);
+  } else {
+    buttonRefs.delete(invoiceId);
+  }
+};
+
+// Visa meddelande och markera den valda fakturans knapp.
+const downloadInvoice = async (invoice) => {
+  activeInvoiceId.value = invoice.id;
+  alertMessage.value = `Nedladdning av faktura ${invoice.id} kommer snart.`;
+  showAlert.value = true;
+};
+
+// Stäng meddelandet och återställ fokus till knappen.
+const closeAlert = async () => {
+  const button = buttonRefs.get(activeInvoiceId.value);
+
+  showAlert.value = false;
+  alertMessage.value = "";
+
+  await nextTick();
+
+  if (button?.isConnected) {
+    button.focus();
+  }
+
+  activeInvoiceId.value = null;
 };
 </script>
 
@@ -117,22 +171,9 @@ tbody th {
   font-weight: 600;
 }
 
-.status-chip {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-betald {
-  color: #05603a;
-  background: #dcfae6;
-}
-
-.status-obetald {
-  color: #912018;
-  background: #fee4e2;
+.download--active {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
 }
 
 .download {
