@@ -36,18 +36,11 @@
               <td>{{ invoice.period }}</td>
               <td>{{ invoice.amount }} kr</td>
               <td>{{ invoice.due }}</td>
+
               <td>
-                <span
-                  :class="[
-                    'status-chip',
-                    invoice.status === 'Betald'
-                      ? 'status-betald'
-                      : 'status-obetald',
-                  ]"
-                >
-                  {{ invoice.status }}
-                </span>
+                <KStatus :status="invoice.status" />
               </td>
+
               <td>
                 <KButton
                   variant="primary"
@@ -72,6 +65,8 @@ import { ref, onMounted } from "vue";
 import { fetchInvoices } from "../services/api";
 import KButton from "../components/KButton.vue";
 import KAlert from "../components/KAlert.vue";
+import KStatus from "../components/KStatus.vue";
+
 const showAlert = ref(false);
 const alertMessage = ref("");
 
@@ -145,24 +140,6 @@ thead th {
 
 tbody th {
   font-weight: 600;
-}
-
-.status-chip {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-betald {
-  color: #05603a;
-  background: #dcfae6;
-}
-
-.status-obetald {
-  color: #912018;
-  background: #fee4e2;
 }
 
 .download {
