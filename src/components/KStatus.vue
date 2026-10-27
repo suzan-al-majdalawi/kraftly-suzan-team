@@ -1,7 +1,12 @@
 <template>
   <span
     class="status-chip"
-    :class="status === 'Betald' ? 'status-betald' : 'status-obetald'"
+    :class="{
+      'status-betald': status === 'Betald',
+      'status-obetald': status === 'Obetald',
+      'status-forfallen': status === 'Förfallen',
+      'status-okand': !['Betald', 'Obetald', 'Förfallen'].includes(status),
+    }"
   >
     {{ status }}
   </span>
@@ -31,7 +36,17 @@ defineProps({
 }
 
 .status-obetald {
+  color: #243b9b;
+  background: #eef1ff;
+}
+
+.status-forfallen {
   color: #912018;
   background: #fee4e2;
+}
+
+.status-okand {
+  color: #344054;
+  background: #f2f4f7;
 }
 </style>
