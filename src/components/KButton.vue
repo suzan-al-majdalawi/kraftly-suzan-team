@@ -65,6 +65,7 @@ defineProps({
 .k-button:focus-visible {
   outline: 3px solid #111827;
   outline-offset: 3px;
+  background-color: beige;
 }
 
 .k-button:disabled {

@@ -25,6 +25,7 @@
           <caption>
             Översikt över dina fakturor
           </caption>
+
           <thead>
             <tr>
               <th scope="col">Faktura</th>
@@ -49,8 +50,12 @@
 
               <td>
                 <KButton
+                  :ref="(el) => setButtonRef(invoice.id, el)"
                   variant="primary"
                   class="download"
+                  :class="{
+                    'download--active': activeInvoiceId === invoice.id,
+                  }"
                   type="button"
                   :aria-label="`Ladda ner faktura ${invoice.id}`"
                   @click="downloadInvoice(invoice)"
@@ -75,12 +80,13 @@ import KStatus from "../components/KStatus.vue";
 
 const showAlert = ref(false);
 const alertMessage = ref("");
+const activeInvoiceId = ref(null);
+
+const buttonRefs = new Map();
 
 const invoices = ref([]);
 const loading = ref(true);
 const error = ref("");
-
-let alertTimer;
 
 onMounted(async () => {
   try {
@@ -92,37 +98,39 @@ onMounted(async () => {
   }
 });
 
-// Stäng meddelandet och rensa timern.
-const closeAlert = () => {
+// Spara referensen till varje nedladdningsknapp.
+const setButtonRef = (invoiceId, component) => {
+  if (component) {
+    buttonRefs.set(invoiceId, component.$el);
+  } else {
+    buttonRefs.delete(invoiceId);
+  }
+};
+
+// Visa meddelande och markera den valda fakturans knapp.
+const downloadInvoice = async (invoice) => {
+  activeInvoiceId.value = invoice.id;
+  alertMessage.value = `Nedladdning av faktura ${invoice.id} kommer snart.`;
+  showAlert.value = true;
+};
+
+// Stäng meddelandet och återställ fokus till knappen.
+const closeAlert = async () => {
+  const button = buttonRefs.get(activeInvoiceId.value);
+
   showAlert.value = false;
   alertMessage.value = "";
-  clearTimeout(alertTimer);
+
+  await nextTick();
+
+  if (button?.isConnected) {
+    button.focus();
+  }
 };
 
 onUnmounted(() => {
-  clearTimeout(alertTimer);
+  buttonRefs.clear();
 });
-
-/**
- * Gammal kod:
- *
- * const downloadInvoice = (invoice) => {
- *   console.log("download", invoice.id);
- *   alert("Nedladdning kommer snart");
- * };
- */
-
-// Ny kod: visa ett återanvändbart meddelande via KAlert.vue.
-const downloadInvoice = async (invoice) => {
-  closeAlert();
-  await nextTick();
-
-  alertMessage.value = `Nedladdning av faktura ${invoice.id} kommer snart.`;
-  showAlert.value = true;
-
-  // Stäng automatiskt efter 5 sekunder.
-  alertTimer = setTimeout(closeAlert, 5000);
-};
 </script>
 
 <style scoped>
@@ -163,6 +171,11 @@ thead th {
 
 tbody th {
   font-weight: 600;
+}
+
+.download--active {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
 }
 
 .download {
