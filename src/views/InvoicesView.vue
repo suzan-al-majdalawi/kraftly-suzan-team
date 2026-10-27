@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import { fetchInvoices } from "../services/api";
 import KButton from "../components/KButton.vue";
 import KAlert from "../components/KAlert.vue";
@@ -126,11 +126,9 @@ const closeAlert = async () => {
   if (button?.isConnected) {
     button.focus();
   }
-};
 
-onUnmounted(() => {
-  buttonRefs.clear();
-});
+  activeInvoiceId.value = null;
+};
 </script>
 
 <style scoped>
