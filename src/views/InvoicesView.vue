@@ -2,7 +2,13 @@
   <main class="invoices-view">
     <h1>Fakturor</h1>
 
-    <KAlert :show="showAlert" :message="alertMessage" variant="info" />
+    <KAlert
+      :show="showAlert"
+      :message="alertMessage"
+      variant="info"
+      @close="closeAlert"
+    />
+
     <p v-if="loading" role="status" aria-live="polite">Laddar fakturor…</p>
 
     <p v-else-if="error" class="error-message" role="alert">
@@ -61,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import { fetchInvoices } from "../services/api";
 import KButton from "../components/KButton.vue";
 import KAlert from "../components/KAlert.vue";
@@ -74,6 +80,8 @@ const invoices = ref([]);
 const loading = ref(true);
 const error = ref("");
 
+let alertTimer;
+
 onMounted(async () => {
   try {
     invoices.value = await fetchInvoices();
@@ -82,6 +90,17 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+});
+
+// Stäng meddelandet och rensa timern.
+const closeAlert = () => {
+  showAlert.value = false;
+  alertMessage.value = "";
+  clearTimeout(alertTimer);
+};
+
+onUnmounted(() => {
+  clearTimeout(alertTimer);
 });
 
 /**
@@ -93,12 +112,16 @@ onMounted(async () => {
  * };
  */
 
-// Ny kod: visa ett återanvändbart meddelande via KAlert.vue
-const downloadInvoice = (invoice) => {
-  console.log("download", invoice.id);
+// Ny kod: visa ett återanvändbart meddelande via KAlert.vue.
+const downloadInvoice = async (invoice) => {
+  closeAlert();
+  await nextTick();
 
   alertMessage.value = `Nedladdning av faktura ${invoice.id} kommer snart.`;
   showAlert.value = true;
+
+  // Stäng automatiskt efter 5 sekunder.
+  alertTimer = setTimeout(closeAlert, 5000);
 };
 </script>
 
