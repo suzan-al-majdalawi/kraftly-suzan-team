@@ -2,6 +2,7 @@
   <main class="invoices-view">
     <h1>Fakturor</h1>
 
+    <KAlert :show="showAlert" :message="alertMessage" variant="info" />
     <p v-if="loading" role="status" aria-live="polite">Laddar fakturor…</p>
 
     <p v-else-if="error" class="error-message" role="alert">
@@ -48,14 +49,15 @@
                 </span>
               </td>
               <td>
-                <button
+                <KButton
+                  variant="primary"
                   class="download"
                   type="button"
                   :aria-label="`Ladda ner faktura ${invoice.id}`"
                   @click="downloadInvoice(invoice)"
                 >
                   Ladda ner
-                </button>
+                </KButton>
               </td>
             </tr>
           </tbody>
@@ -68,6 +70,10 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { fetchInvoices } from "../services/api";
+import KButton from "../components/KButton.vue";
+import KAlert from "../components/KAlert.vue";
+const showAlert = ref(false);
+const alertMessage = ref("");
 
 const invoices = ref([]);
 const loading = ref(true);
@@ -83,9 +89,21 @@ onMounted(async () => {
   }
 });
 
+/**
+ * Gammal kod:
+ *
+ * const downloadInvoice = (invoice) => {
+ *   console.log("download", invoice.id);
+ *   alert("Nedladdning kommer snart");
+ * };
+ */
+
+// Ny kod: visa ett återanvändbart meddelande via KAlert.vue
 const downloadInvoice = (invoice) => {
   console.log("download", invoice.id);
-  alert("Nedladdning kommer snart");
+
+  alertMessage.value = `Nedladdning av faktura ${invoice.id} kommer snart.`;
+  showAlert.value = true;
 };
 </script>
 
