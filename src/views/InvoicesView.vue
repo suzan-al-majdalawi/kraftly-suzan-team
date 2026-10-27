@@ -45,7 +45,7 @@
               <td>{{ invoice.due }}</td>
 
               <td>
-                <KStatus :status="invoice.status" />
+                <KStatus :status="invoiceStatus(invoice)" />
               </td>
 
               <td>
@@ -77,6 +77,7 @@ import { fetchInvoices } from "../services/api";
 import KButton from "../components/KButton.vue";
 import KAlert from "../components/KAlert.vue";
 import KStatus from "../components/KStatus.vue";
+import { invoiceStatus } from "../utils/invoice.js";
 
 const showAlert = ref(false);
 const alertMessage = ref("");

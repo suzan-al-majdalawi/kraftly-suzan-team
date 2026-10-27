@@ -3,12 +3,16 @@ export const invoiceStatus = (invoice, today = new Date()) => {
     return "Betald";
   }
 
+  // Okänd eller saknad status ska inte bli "Förfallen".
+  if (invoice.status !== "Obetald") {
+    return invoice.status || "Okänd";
+  }
+
   if (!invoice.due) {
     return "Obetald";
   }
 
   const [year, month, day] = invoice.due.split("-").map(Number);
-
   const dueDate = new Date(year, month - 1, day);
 
   const todayDate = new Date(
