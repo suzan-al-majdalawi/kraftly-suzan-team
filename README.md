@@ -1,30 +1,83 @@
-# kraftly-mina-sidor
+# Kraftly Mina sidor
 
 Customer portal for Kraftly. Delivered by Webbmakarna AB 2026-06-30.
 
 [![CI](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml/badge.svg)](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/actions/workflows/ci.yml)
 
+Kundportal för Kraftly, levererad av Webbmakarna AB.
+
+Kraftly Mina sidor är en webbapplikation där kunder kan logga in på sitt konto, navigera mellan olika sidor och använda de tjänster som Kraftly erbjuder.
+
 ## Deployments
 
-| Environment | URL                                                                          |
-| ----------- | ---------------------------------------------------------------------------- |
-| Production  | [Kraftly Production](https://kraftly-suzan-team-production-ny.onrender.com/) |
-| Staging     | [Kraftly Staging](https://kraftly-suzan-team-staging-ny.onrender.com/)       |
+| Miljö      | Länk                                                                         |
+| ---------- | ---------------------------------------------------------------------------- |
+| Produktion | [Kraftly Production](https://kraftly-suzan-team-production-ny.onrender.com/) |
+| Testmiljö  | [Kraftly Staging](https://kraftly-suzan-team-staging-ny.onrender.com/)       |
 
-### Test account
+## Översikt
 
-- **Email:** `anna.andersson@example.com`
-- **Password:** `sommar2026`.
+Kraftly Mina sidor är byggd med Vue 3 och tillhandahåller ett användargränssnitt för Kraftlys kunder. Applikationen använder Vue Router för navigering och Pinia för tillståndshantering.
 
-## Getting started
+Projektet innehåller:
 
-### Alternativ 1 – Docker
+- En single-page application (SPA) byggd med Vue 3.
+- Klientbaserad navigering och hantering av applikationens tillstånd.
+- Nginx för att leverera frontendfiler och vidarebefordra API-förfrågningar.
+- Ett externt Kraftly-test-API samt ett mock-API för lokal utveckling.
+- GitHub Actions för automatiserade kontroller och byggen.
+- Docker-images som publiceras till GitHub Container Registry (GHCR).
+- Deployment till test- och produktionsmiljö via Render.
 
-Det rekommenderade sättet att starta projektet lokalt är med Docker Compose.
+## Skärmbilder – Mina sidor
 
-1. Installera och öppna Docker Desktop.
-2. Öppna terminalen i projektets rotmapp.
-3. Kör:
+Här visas applikationens huvudsakliga vyer. Skärmbilderna hjälper läsaren att förstå gränssnittet och hur kunden navigerar mellan funktionerna.
+
+| Sida         | Route       | Skärmbild                      |
+| ------------ | ----------- | ------------------------------ |
+| Inloggning   | `/login`    | `docs/img/sidor/login.png`     |
+| Dashboard    | `/`         | `docs/img/sidor/dashboard.png` |
+| Fakturor     | `/fakturor` | `docs/img/sidor/fakturor.png`  |
+| Flyttanmälan | `/flytt`    | `docs/img/sidor/flytt.png`     |
+| Profil       | `/profil`   | `docs/img/sidor/profil.png`    |
+
+### Inloggning
+
+![Inloggningssidan](docs/img/sidor/login.png)
+
+### Dashboard
+
+![Kundens dashboard](docs/img/sidor/dashboard.png)
+
+### Fakturor
+
+![Fakturavyn](docs/img/sidor/fakturor.png)
+
+### Flyttanmälan
+
+![Flyttformuläret](docs/img/sidor/flytt.png)
+
+### Profil
+
+![Profilsidan](docs/img/sidor/profil.png)
+
+**Obs!** Lägg endast in länkar till skärmbilder som faktiskt finns i katalogen `docs/img/sidor/`. Filnamnen ovan är förslag och ska stämma överens med de bilder som sparas i projektet.
+
+## Kom igång
+
+### Förutsättningar
+
+- Node.js 24.
+- npm.
+- Docker Desktop om du vill köra applikationen med Docker.
+
+### Alternativ 1 – Kör med Docker
+
+Docker Compose rekommenderas för lokal körning av projektet.
+
+1. Installera och starta Docker Desktop.
+2. Öppna en terminal i projektets rotkatalog.
+3. Kör följande kommando:
 
 ```bash
 docker compose up --build
@@ -32,69 +85,124 @@ docker compose up --build
 
 Öppna sedan [http://localhost:8080](http://localhost:8080).
 
-Frontend körs via Nginx och mock API:t körs i en separat container.
+Frontend-applikationen levereras via Nginx och mock-API:t körs i en separat container.
 
-#### Att stoppa containrarna
+Stoppa containrarna med:
 
 ```bash
 docker compose down
 ```
 
-#### Att lista Docker-images
+Visa lokala Docker-images med:
 
 ```bash
 docker image ls
 ```
 
-### Alternativ 2 – utan Docker
+### Alternativ 2 – Kör utan Docker
 
-Installera projektets dependencies:
-
-```bash
-npm install
-```
-
-Starta mock API:t i en terminal:
-
-```bash
-npm run api
-```
-
-Starta utvecklingsservern i en separat terminal:
-
-```bash
-npm run dev
-```
-
-Sen
+Installera beroendena:
 
 ```bash
 npm ci
 ```
 
-Öppna sedan [http://localhost:5173](http://localhost:5173).
+Starta mock-API:t i en terminal:
 
-I utvecklingsläge proxas `/api` till mock API:t på port 4000.
+```bash
+npm run api
+```
 
-### Alternativ 3 – Kubernetes lokalt (stretchövning)
+Starta utvecklingsservern i en annan terminal:
 
-Kubernetes-konfigurationen finns i `k8s/kraftly.yaml`. Den innehåller en ConfigMap för publik konfiguration, en Deployment för applikationen och en Service som exponerar applikationen internt i klustret.
+```bash
+npm run dev
+```
 
-Den här instruktionen gäller lokal testning med Docker Desktop Kubernetes. Den ersätter inte projektets vanliga deployment till Render.
+Öppna [http://localhost:5173](http://localhost:5173).
 
-#### Förutsättningar
+I utvecklingsläge vidarebefordras förfrågningar till `/api` till mock-API:t på port 4000.
 
-- Docker Desktop är installerat och startat.
-- Kubernetes är aktiverat och ett kluster har skapats i Docker Desktop.
-- `kubectl` är installerat.
-- Docker-imagen finns i GitHub Container Registry (GHCR).
-- Du har en giltig API-nyckel för den miljö du vill testa.
+Använd `npm ci` för reproducerbar installation när en giltig `package-lock.json` finns. Använd `npm install` när du avsiktligt vill uppdatera beroendena.
 
-#### 1. Kontrollera Kubernetes
+## Navigering i applikationen
 
-Öppna Docker Desktop och vänta tills Kubernetes-klustret är igång.
+Applikationen använder Vue Router för att navigera mellan vyerna.
 
-Öppna sedan PowerShell i projektets rotmapp:
+Följande routes är definierade:
+
+- `/login` – inloggning för gäster.
+- `/` – kundens dashboard.
+- `/fakturor` – översikt över fakturor.
+- `/flytt` – formulär för flyttanmälan.
+- `/profil` – kundens profil.
+
+De fyra kundvyerna kräver autentisering, medan `/login` är avsedd för användare som inte är inloggade. Routern försöker även återställa användarens session innan den avgör om användaren ska omdirigeras till inloggningen.
+
+När ett användarflöde dokumenteras ska den faktiska navigeringsvägen och det förväntade resultatet beskrivas. Exempel:
+
+1. Öppna applikationen.
+2. Logga in med giltiga testuppgifter.
+3. Navigera till önskad sida via applikationens meny.
+4. Välj relevant funktion eller fyll i formuläret.
+5. Kontrollera att rätt sida eller resultat visas.
+
+Verifiera routes och beteenden i den faktiska applikationen innan dokumentationen uppdateras.
+
+## Arkitektur
+
+Följande diagram visar de viktigaste komponenterna och hur de samverkar.
+
+```mermaid
+flowchart LR
+    Browser["Kundens webbläsare<br/>Vue 3 SPA"]
+    GitHub["GitHub Actions<br/>Bygge och publicering"]
+    GHCR[("GHCR<br/>Docker-avbildning med SHA-tagg")]
+    Render["Render<br/>Nginx-container"]
+    API["Externt Kraftly-test-API"]
+    Mock["Lokalt mock-API"]
+
+    GitHub --> GHCR
+    GHCR -.->|"Avbildningen hämtas vid deployment"| Render
+    Browser -->|"HTML, tillgångar och config.js"| Render
+    Browser -->|"/api-förfrågningar"| Render
+    Render -->|"Proxy och API-nyckel"| API
+    Browser -.->|"Utvecklingsläge"| Mock
+```
+
+### Huvudkomponenter
+
+- **Vue 3:** Bygger kundgränssnittet.
+- **Pinia:** Hanterar applikationens tillstånd.
+- **Vue Router:** Hanterar navigeringen mellan vyerna.
+- **Nginx:** Levererar byggda frontendfiler och vidarebefordrar API-förfrågningar.
+- **GitHub Actions:** Kör CI-kontroller och bygger Docker-avbildningen.
+- **GHCR:** Lagrar och distribuerar Docker-images.
+- **Render:** Kör den driftsatta applikationen.
+- **Externt API:** Tillhandahåller API-funktionalitet utanför teamets direkta ägarskap.
+- **Mock-API:** Möjliggör lokal utveckling och testning.
+
+Mer information finns i:
+
+- [Systemarkitektur](docs/architecture.md)
+- [CI/CD-pipeline](docs/pipeline.md)
+
+## Lokal testning med Kubernetes (valfritt)
+
+Kubernetes används som en valfri övning för lokal testning. Det är inte projektets standardmetod för deployment.
+
+Konfigurationen finns i `k8s/kraftly.yaml`.
+
+### Förutsättningar
+
+- Docker Desktop med Kubernetes aktiverat.
+- `kubectl` installerat.
+- Åtkomst till rätt Docker-avbildning i GHCR.
+- En giltig API-nyckel från teamets säkra lagring.
+
+### 1. Kontrollera klustret
+
+Kör följande kommandon i PowerShell:
 
 ```powershell
 kubectl config use-context docker-desktop
@@ -103,205 +211,215 @@ kubectl get nodes
 
 Kontrollera att nodens status är `Ready`.
 
-#### 2. Gå till Kubernetes-mappen
+### 2. Skapa en Secret för API-nyckeln
 
-Kör från projektets rotmapp:
+Kör följande kommando med en giltig API-nyckel från teamets säkra lagring:
 
-```powershell
-cd k8s
-```
-
-Kontrollera att manifestet finns:
-
-```powershell
-ls
-```
-
-Du ska se `kraftly.yaml`.
-
-#### 3. Skapa en Secret för API-nyckeln
-
-Skapa en Kubernetes Secret med en giltig API-nyckel från teamets säkra lagring:
-
-```powershell
+```bash
 kubectl create secret generic kraftly-secrets --from-literal=API_KEY=<DIN_API_NYCKEL>
 ```
 
-Ersätt `<DIN_API_NYCKEL>` med den riktiga nyckeln. Lägg aldrig en riktig nyckel i README, Git eller ett committat YAML-manifest.
-secret/kraftly-secrets created
+Ersätt platshållaren med rätt nyckel. Lägg aldrig riktiga API-nycklar i Git eller i README-filen.
 
-Om Secret redan finns kan du kontrollera att den finns med:
+Om en Secret redan finns kan du kontrollera den med:
 
-```powershell
+```bash
 kubectl get secret kraftly-secrets
 ```
 
-#### 4. Kontrollera konfigurationen
+### 3. Kontrollera konfigurationen
 
-I `kraftly.yaml` ska `Deployment` använda den avsedda Docker-imagen. Exempel på en image:
+Granska `k8s/kraftly.yaml` och verifiera att:
 
-```yaml
-image: ghcr.io/suzan-al-majdalawi/kraftly-suzan-team:39557d93de39df3cd048cbe740fadc69d1fb29ab
+- Docker-avbildningen och dess tagg är korrekta.
+- API-adressen pekar på rätt miljö.
+- Deployment hämtar `API_KEY` från `kraftly-secrets`.
+- Konfigurationen överensstämmer med applikationens krav.
+- Åtkomst till GHCR är konfigurerad om avbildningen är privat.
+
+### 4. Driftsätt applikationen
+
+Kör följande kommando från projektets rotkatalog:
+
+```bash
+kubectl apply -f k8s/kraftly.yaml
 ```
 
-Använd den image-version som ska testas. För reproducerbara tester är en specifik image-tag eller SHA att föredra framför `latest`.
+### 5. Kontrollera status
 
-Om GHCR-paketet är privat måste Kubernetes konfigureras för att autentisera mot registret.
-
-Kontrollera att `ConfigMap` innehåller rätt API-adress för testmiljön, om applikationen läser `API_URL` vid körning:
-
-```yaml
-data:
-  API_URL: "https://kraftly-api.sprinto.cloud"
-```
-
-Kontrollera också att `Deployment` läser `API_KEY` från Secret `kraftly-secrets` med `valueFrom.secretKeyRef`.
-
-**Obs:** Om frontendens `API_URL` byggs in under Vite-bygget räcker det inte nödvändigtvis att ändra en Kubernetes ConfigMap. Följ projektets byggkonfiguration.
-
-#### 5. Deploya applikationen
-
-Kör från mappen `k8s`:
-
-```powershell
-kubectl apply -f kraftly.yaml
-```
-
-#### 6. Kontrollera status
-
-Visa Pods och följ uppstarten:
-
-```powershell
+```bash
 kubectl get pods -w
-```
-
-Avsluta övervakningen med `Ctrl+C`.
-
-Kontrollera Deployment och Service:
-
-```powershell
 kubectl get deployments
 kubectl get services
 ```
 
-Om en Pod inte startar, undersök detaljer och loggar:
+Om en Pod inte startar kan du undersöka detaljer och loggar:
 
-```powershell
+```bash
 kubectl describe pods
 kubectl logs deployment/kraftly
 ```
 
-Vanliga problem:
+### 6. Öppna applikationen
 
-- `ImagePullBackOff` eller `ErrImagePull`: kontrollera image-namn, tagg och åtkomst till GHCR.
-- `CreateContainerConfigError`: kontrollera att Secret och konfigurationsreferenser finns.
-- `CrashLoopBackOff`: kontrollera applikationens loggar och miljövariabler.
-
-#### 7. Öppna applikationen lokalt
-
-När applikationen är redo, kör:
-
-```powershell
+```bash
 kubectl port-forward service/kraftly 8080:80
 ```
 
-Öppna [http://localhost:8080](http://localhost:8080) i webbläsaren.
+Öppna [http://localhost:8080](http://localhost:8080).
 
-Låt terminalfönstret vara öppet medan du testar.
+Låt terminalen vara öppen medan du testar.
 
-#### 8. Ta bort Kubernetes-resurser efter testet
+### 7. Rensa testmiljön
 
-Kör från mappen `k8s`:
-
-```powershell
-kubectl delete -f kraftly.yaml
-```
-
-Om du även vill ta bort Secret:
-
-```powershell
+```bash
+kubectl delete -f k8s/kraftly.yaml
 kubectl delete secret kraftly-secrets
 ```
 
-Detta tar bort resurserna från Kubernetes-klustret, men inte Docker-imagen i GHCR.
+Ta endast bort Secret-resursen om den inte längre behövs av andra resurser i klustret.
 
-## Arbetsavtal
+## CI/CD-pipeline
+
+GitHub Actions-arbetsflödet definieras i `.github/workflows/ci.yml`.
+
+### Kontroller och bygge
+
+Arbetsflödet innehåller bland annat följande kontroller:
+
+- Tillgänglighetstester med `npm run test:a11y`.
+- Applikationstester med `npm run test:run`.
+- Produktionsbygge med `npm run build`.
+- Storybook-bygge med `npm run build-storybook`.
+
+Storybook-bygget laddas upp som en artefakt med namnet `storybook-static`.
+
+### Publicering av avbildning och deployment
+
+Vid push till `main` bygger arbetsflödet en Docker-image och publicerar den till GHCR med både en commit-SHA-tagg och taggen `main`.
+
+Deploymentsprocessen består av följande steg:
+
+1. Bygg och publicera Docker-imagenen.
+2. Driftsätt till testmiljön.
+3. Verifiera den driftsatta versionen med `version.txt`.
+4. Driftsätt till produktion efter att jobbet för testmiljön har lyckats.
+5. Verifiera produktionsversionen och kontrollera flaggan `FEATURE_NORWAY`.
+
+De faktiska kraven för sammanslagning av pull requests styrs av reglerna i GitHub-repositoriet och ska kontrolleras där.
+
+Mer information finns i [dokumentationen för CI/CD-pipelinen](docs/pipeline.md).
+
+## Testning
+
+Kör relevanta tester innan du skickar in en pull request:
+
+```bash
+npm run test:a11y
+npm run test:run
+npm run build
+npm run build-storybook
+```
+
+Ange endast att testerna har godkänts när de faktiskt har körts och slutförts utan fel.
+
+Automatiska tillgänglighetstester är ett viktigt hjälpmedel men utgör inte i sig ett bevis på fullständig WCAG-efterlevnad.
+
+## Teamets arbetssätt
 
 ### Kommunikation
 
-Vi fokuserar på att lösa problemen tillsammans. Om någon behöver hjälp frågar vi i teamets kommunikationskanal och söker efter problemet tillsammans.
+Vi samarbetar för att lösa problem och ber om hjälp i teamets överenskomna kommunikationskanal vid behov.
 
-### Mötestider
+### Möten
 
-Vid behov frågar vi i Slack eller annan överenskommen kommunikationskanal.
+Mötestider samordnas via Slack eller någon annan kommunikationskanal som teamet har kommit överens om.
 
-## Definition of done för PR:er
+### Git-arbetsflöde
 
-Beskriv följande i varje Pull Request:
+- Använd kortlivade feature branches.
+- Gör ändringar genom pull requests.
+- Be minst en teammedlem att granska ändringarna före sammanslagning, enligt teamets regler.
+- Håll feature-branchen uppdaterad med `main`.
 
-- Vilket ticket eller issue?
-- Vad ändrades?
-- Varför?
-- Hur testar man?
+### Checklista för pull requests
 
-Checklista:
+Varje pull request bör beskriva:
 
-- [ ] Jag har kört appen och verifierat ändringen.
-- [ ] Commit-meddelandet följer Conventional Commits.
-- [ ] Grenen utgår från en färsk `main`.
-- [ ] Ticketets "Klar när"-punkter är avbockade.
-- [ ] Relevanta tester och CI-kontroller passerar.
+- Vilken uppgift eller vilket ärende ändringen gäller.
+- Vad som har ändrats.
+- Varför ändringen behövdes.
+- Hur ändringen kan testas.
 
-## Tech lead-schema för rotationen
+Kontrollera före sammanslagning att:
 
-Vecka 1–9.
+- Relevanta tester har körts.
+- CI-kontrollerna har godkänts.
+- Commit-meddelandet följer Conventional Commits.
+- Branchen baseras på en uppdaterad version av `main`.
+- Ärendets acceptanskriterier är uppfyllda.
+- Nödvändiga granskningar och regler i GitHub är uppfyllda.
 
-## Git
+### Conventional Commits
 
-Vi använder kortlivade feature branches.
-
-Alla ändringar i `main` går igenom en Pull Request.
-
-Minst en teammedlem måste granska PR:n innan merge.
-
-## Commits
-
-Vi använder Conventional Commits på varje PR.
-
-Exempel:
+Exempel på commit-meddelanden:
 
 ```bash
 git commit -m "feat: add customer dashboard"
 git commit -m "fix: resolve login issue"
 git commit -m "docs: update README"
-git commit -m "ci: add Lighthouse performance checks"
+git commit -m "ci: add Storybook build"
 ```
 
-## M3: Getting started och dokumentation
+Commit-meddelandena kan skrivas på engelska enligt teamets överenskomna konvention.
 
-README innehåller:
+## Dokumentation
 
-- Docker-instruktioner: `docker compose up --build`
-- Stoppa containrar: `docker compose down`
-- Frontend lokalt: `localhost:8080`
-- Utvecklingsläge utan Docker: `npm install` och `npm run dev`
-- Lokal Kubernetes-testning med Docker Desktop
-- CI-badge
-- Git- och PR-regler
-- Länkar till Production och Staging
+| Dokument                                                   | Beskrivning                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| [docs/architecture.md](docs/architecture.md)               | Systemarkitektur och komponenternas relationer         |
+| [docs/pipeline.md](docs/pipeline.md)                       | CI/CD-arbetsflöde och deployment                       |
+| [docs/milestones.md](docs/milestones.md)                   | Projektmål och acceptanskriterier                      |
+| [docs/performance.md](docs/performance.md)                 | Prestandamätningar och resultat                        |
+| [docs/decisions/rendering.md](docs/decisions/rendering.md) | Beslut och motiveringar kring rendering                |
+| [docs/sustainability.md](docs/sustainability.md)           | Uppskattningar och antaganden kring hållbarhet         |
+| [docs/ai-in-pipeline.md](docs/ai-in-pipeline.md)           | AI-stödd granskning av pipeline och dess begränsningar |
 
-## M5: Deployment
+Kontrollera att samtliga länkade filer finns i projektet innan ändringarna slås samman.
 
-Production deployeras via GitHub Actions med staging-verifierad image/SHA och kräver godkännande innan production deployment.
+## Projektmilstolpar
 
-Staging och production ska använda den avsedda image-versionen för respektive release. Verifiera staging innan production-deployen godkänns.
+### M3 – Kom igång och dokumentation
 
-## M7: Performance
+README-filen beskriver lokal installation, Docker, valfri Kubernetes-testning, deployment och teamets arbetsflöde.
 
-Performance-arbetet omfattar:
+### M5 – Deployment
 
-- Lighthouse CI i GitHub Actions.
-- Performance budgets för LCP, CLS och JavaScript-storlek.
-- Produktionsbygge med `npm run build`.
-- Dokumentation av prestandamätningar och optimeringsbeslut i `docs/performance.md` och `docs/decisions/rendering.md`.
-- Dokumentation av projektets milstolpar i `docs/milestones.md`.
+Deployment och versionsverifiering dokumenteras i `docs/pipeline.md` och `docs/milestones.md`. Kontrollera att dokumentationen överensstämmer med det aktuella arbetsflödet.
+
+### M7 – Prestanda
+
+Prestandaarbete och mätresultat dokumenteras i `docs/performance.md` och `docs/decisions/rendering.md`.
+
+### M8 – Tillgänglighet
+
+Tillgänglighetsarbetet och dess verifieringsstatus dokumenteras i `docs/milestones.md` och projektets tillgänglighetsanalys. Godkända automatiska tester ska inte tolkas som bevis på fullständig WCAG-efterlevnad.
+
+### M9 – Återanvändbara fält och Storybook
+
+Återanvändbara fältkomponenter, Storybook-berättelser, tillgänglighetstester och CI-artefakten för Storybook följs upp i `docs/milestones.md`.
+
+## Säkerhet
+
+- Lägg aldrig API-nycklar, åtkomsttoken eller andra hemligheter i Git.
+- Lagra deploymentsnycklar och autentiseringsuppgifter i GitHub Actions Secrets eller motsvarande säker lagring.
+- Använd testuppgifter endast i avsedd testmiljö.
+- Publicera aldrig lösenord i README-filen.
+- Kontrollera att API-nycklar hanteras på serversidan och inte exponeras i publika frontendfiler.
+- Kontrollera att proxykonfigurationen hanterar autentisering och känsliga uppgifter på ett säkert sätt.
+
+---
+
+**Projekt:** Kraftly Mina sidor  
+**Leverantör:** Webbmakarna AB  
+**Dokumentationsdatum:** 2026-06-30
