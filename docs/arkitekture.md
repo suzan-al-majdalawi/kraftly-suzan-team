@@ -10,11 +10,13 @@ Docker-imagen byggs i GitHub Actions, publiceras till GitHub Container Registry 
 
 ```mermaid
 flowchart LR
+
     subgraph GitHub["GitHub"]
         CI["GitHub Actions: ci.yml<br/>Bygger Docker-image en gång"]
         GHCR[("GHCR<br/>Imagen taggad med SHA")]
+
         CI -->|"docker push :SHA"| GHCR
-        CI -->|"deploy hook: kör den här sha:n"| Render
+
     end
 
     subgraph Browser["Kundens webbläsare"]
@@ -25,15 +27,16 @@ flowchart LR
         NGINX["nginx:1.27-alpine<br/>dist/ + config.js<br/>CSP och säkerhetsheaders"]
     end
 
-    subgraph ExternalAPI["Kraftly – ägs inte av oss - externt API"]
-        API["Kraftlys test-API v2<br/>Lokal:mock-api/ för utveckling"]
+    subgraph ExternalAPI["Kraftly – externt API"]
+        API["Kraftlys test-API v2<br/>Lokal mock: mock-api/"]
     end
 
     GHCR -.->|"Render drar/hämtar Imagen"| NGINX
-    CI -.->|"Deploy Hook med commit-SHA"|
+    CI -->|"deploy hook: kör den här sha:n"| NGINX
+
     SPA -->|"index.html, assets och config.js"| NGINX
-    SPA -->|"/api/v2/...med Bearer-token refresh-cokkie bara till<br/>/api/v2/auth"| NGINX
-    SPA -->|"/api/v2/auth/...<br/>Refresh-cookie"| NGINX
+    SPA -->|"/api/v2/...Bearer-token <br/>refresh-cookie bara till <br/>/api/v2/auth"| NGINX
+
     NGINX -->|"proxy_pass + X-API-Key"| API
 ```
 
@@ -76,4 +79,5 @@ Refresh-cookie används endast för autentiseringsflödet enligt projektets konf
 
 ## Begränsningar
 
-Diagrammet visar systemets huvudsakliga komponenter och kommunikationsvägar. Exakta detaljer om tokenhantering, cookie-attribut, API-rutter och deployment ska verifieras mot den faktiska koden och konfigurationen.
+Diagrammet visar systemets huvudsakliga komponenter och kommunikationsvägar. Exakta detaljer om tokenhantering, cookie-attribut, API-ru
+tter och deployment ska verifieras mot den faktiska koden och konfigurationen.
