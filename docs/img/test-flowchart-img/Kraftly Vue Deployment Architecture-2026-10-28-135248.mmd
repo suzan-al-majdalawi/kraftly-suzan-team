@@ -1,0 +1,29 @@
+flowchart LR
+
+    subgraph GitHub["GitHub"]
+        CI["GitHub Actions: ci.yml<br/>Bygger Docker-image en gång"]
+        GHCR[("GHCR<br/>Imagen taggad med SHA")]
+
+        CI -->|"docker push :SHA"| GHCR
+
+    end
+
+    subgraph Browser["Kundens webbläsare"]
+        SPA["Vue 3 SPA<br/>Pinia · vue-router<br/>Access token i minnet"]
+    end
+
+    subgraph Render["Render – en container per miljö"]
+        NGINX["nginx:1.27-alpine<br/>dist/ + config.js<br/>CSP och säkerhetsheaders"]
+    end
+
+    subgraph ExternalAPI["Kraftly – externt API"]
+        API["Kraftlys test-API v2<br/>Lokal mock: mock-api/"]
+    end
+
+    GHCR -.->|"Render drar/hämtar Imagen"| NGINX
+    CI -->|"deploy hook: kör den här sha:n"| NGINX
+
+    SPA -->|"index.html, assets och config.js"| NGINX
+    SPA -->|"/api/v2/...Bearer-token <br/>refresh-cookie bara till <br/>/api/v2/auth"| NGINX
+
+    NGINX -->|"proxy_pass + X-API-Key"| API
