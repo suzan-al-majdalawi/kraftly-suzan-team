@@ -11,9 +11,10 @@ Docker-imagen byggs i GitHub Actions, publiceras till GitHub Container Registry 
 ```mermaid
 flowchart LR
     subgraph GitHub["GitHub"]
-        CI["GitHub Actions<br/>ci.yml<br/>Bygger Docker-image"]
-        GHCR[("GHCR<br/>Image taggad med SHA")]
-        CI -->|"docker push SHA"| GHCR
+        CI["GitHub Actions: ci.yml<br/>Bygger Docker-image en gång"]
+        GHCR[("GHCR<br/>Imagen taggad med SHA")]
+        CI -->|"docker push :SHA"| GHCR
+        CI -->|"deploy hook: kör den här sha:n"| Render
     end
 
     subgraph Browser["Kundens webbläsare"]
@@ -24,15 +25,14 @@ flowchart LR
         NGINX["nginx:1.27-alpine<br/>dist/ + config.js<br/>CSP och säkerhetsheaders"]
     end
 
-    subgraph ExternalAPI["Kraftly – externt API"]
-        API["Kraftlys test-API v2<br/>Lokal mock-API för utveckling"]
+    subgraph ExternalAPI["Kraftly – ägs inte av oss - externt API"]
+        API["Kraftlys test-API v2<br/>Lokal:mock-api/ för utveckling"]
     end
 
-    GHCR -.->|"Render hämtar imagen"| NGINX
-    CI -.->|"Deploy Hook med commit-SHA"| NGINX
-
-    NGINX -->|"index.html, assets och config.js"| SPA
-    SPA -->|"/api/v2/...<br/>Bearer-token"| NGINX
+    GHCR -.->|"Render drar/hämtar Imagen"| NGINX
+    CI -.->|"Deploy Hook med commit-SHA"|
+    SPA -->|"index.html, assets och config.js"| NGINX
+    SPA -->|"/api/v2/...med Bearer-token refresh-cokkie bara till<br/>/api/v2/auth"| NGINX
     SPA -->|"/api/v2/auth/...<br/>Refresh-cookie"| NGINX
     NGINX -->|"proxy_pass + X-API-Key"| API
 ```
