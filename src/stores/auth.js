@@ -5,7 +5,7 @@ import { getAccessToken, setAccessToken } from "../services/token";
 
 export const useAuthStore = defineStore("auth", () => {
   const name = ref(null);
-  const restored = ref(false);
+  const restored = ref(true);
 
   const isAuthenticated = computed(() => Boolean(getAccessToken()));
 
