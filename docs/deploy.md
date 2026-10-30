@@ -666,14 +666,14 @@ Kontrollera alltid att filnamnen stämmer med projektets aktuella struktur.
 
 ### Inför deploy
 
-- [ ] Pull request är granskad och godkänd.
-- [ ] Obligatoriska CI-kontroller är gröna.
-- [ ] Produktionsbuild fungerar.
-- [ ] Ändringen är mergad till `main`.
-- [ ] GitHub Actions har byggt imagen.
-- [ ] Imagen har publicerats till GHCR.
-- [ ] Rätt commit-SHA finns tillgänglig.
-- [ ] Render använder rätt image.
+- [x] Pull request är granskad och godkänd.
+- [x] Obligatoriska CI-kontroller är gröna.
+- [x] Produktionsbuild fungerar.
+- [x] Ändringen är mergad till `main`.
+- [x] GitHub Actions har byggt imagen.
+- [x] Imagen har publicerats till GHCR.
+- [x] Rätt commit-SHA finns tillgänglig.
+- [x] Render använder rätt image.
 
 ### Efter deploy
 

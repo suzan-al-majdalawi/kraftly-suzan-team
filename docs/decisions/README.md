@@ -2,16 +2,19 @@
 
 Den här katalogen innehåller de arkitektoniska beslut som har fattats för projektet Kraftly Mina sidor.
 
-Arkitektoniska beslutsregister (ADR) används för att dokumentera viktiga tekniska val, varför besluten fattades och vilka konsekvenser de får. Dokumentationen hjälper teamet att förstå varför en viss lösning valdes och ger vägledning vid framtida utveckling.
+Arkitektoniska beslutsregister (ADR) dokumenterar viktiga tekniska beslut, varför de fattades och vilka konsekvenser de får. Dokumentationen hjälper teamet att förstå systemets arkitektur och ger vägledning vid framtida utveckling.
+
+Ett ADR ska beskriva bakgrunden till ett beslut, vilka alternativ som övervägdes, vilken lösning som valdes och vilka fördelar och nackdelar beslutet innebär.
 
 ## Beslutsregister
 
-| ADR                                                                     | Beslut                                                                                        | Status     |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------- |
-| [ADR 001 – Rendering och hosting](rendering.md)                         | Dokumenterar hur applikationen renderas och hostas.                                           | Godkänt    |
-| [ADR 002 – Tokenlagring](tokenlagring.md)                               | Beskriver hur access token och refresh token lagras och hanteras.                             | Godkänt    |
-| [ADR 003 – E2E-tester](e2e-verktyg.md)                                  | Dokumenterar valet av Playwright för automatiserade E2E-tester.                               | Godkänt    |
-| [ADR 004 – Användarroller och behörigheter](roller-och-behorigheter.md) | Förslag om hur olika användarroller ska hanteras och vilka delar av systemet de får komma åt. | Föreslaget |
+| ADR                                                                           | Beslut                                                                                          | Status     |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------- |
+| [ADR 001 – Rendering och hosting](rendering.md)                               | Dokumenterar hur applikationen renderas och hostas.                                             | Godkänt    |
+| [ADR 002 – Tokenlagring](tokenlagring.md)                                     | Beskriver hur access token och refresh token lagras och hanteras.                               | Godkänt    |
+| [ADR 003 – E2E-tester](e2e-verktyg.md)                                        | Dokumenterar valet av Playwright för automatiserade E2E-tester.                                 | Godkänt    |
+| [ADR 004 – Användarroller och behörigheter](roller-och-behorigheter.md)       | Beskriver förslaget för användarroller och åtkomst till systemets funktioner.                   | Föreslaget |
+| [ADR 005 – Autentisering och användardata](autentisering-och-anvandardata.md) | Dokumenterar hantering av sessioner, samtidiga Refresh-anrop och normalisering av användardata. | Föreslaget |
 
 ## Kommande beslut och förbättringar
 
@@ -32,16 +35,18 @@ Detta ska dokumenteras i ett separat ADR innan lösningen implementeras.
 När ett nytt arkitektoniskt beslut ska dokumenteras:
 
 1. Skapa en ny Markdown-fil i den här katalogen.
-2. Använd ett tydligt filnamn, till exempel `004-roller-och-behorigheter.md`.
+2. Använd ett tydligt filnamn, till exempel `005-autentisering-och-anvandardata.md`.
 3. Beskriv bakgrunden och problemet som behöver lösas.
 4. Dokumentera den valda lösningen och varför den valdes.
 5. Beskriv konsekvenserna av beslutet, både fördelar och eventuella nackdelar.
-6. Lägg till när beslutet ska omprövas.
+6. Ange om beslutet behöver omprövas och när det i så fall ska ske.
 7. Uppdatera beslutsregistret ovan.
+
+Om ett godkänt beslut ändras ska ett nytt ADR skapas som ersätter det tidigare beslutet. Det tidigare ADR:et ska behållas för att bevara beslutshistoriken.
 
 ## Beslutens status
 
-- **Föreslaget (Proposed):** Beslutet diskuteras fortfarande.
+- **Föreslaget (Proposed):** Beslutet diskuteras fortfarande eller väntar på godkännande.
 - **Godkänt (Accepted):** Beslutet har godkänts av teamet.
 - **Ersatt (Superseded):** Beslutet har ersatts av ett nyare beslut.
 
@@ -50,3 +55,4 @@ När ett nytt arkitektoniskt beslut ska dokumenteras:
 - [Systemarkitektur](../architecture.md)
 - [CI/CD-pipeline](../pipeline.md)
 - [Projektets README](../../README.md)
+- [Kända problem](../known-issues.md)
