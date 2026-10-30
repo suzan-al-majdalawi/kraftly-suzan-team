@@ -5,18 +5,17 @@ import { getAccessToken, setAccessToken } from "../services/token";
 
 export const useAuthStore = defineStore("auth", () => {
   const name = ref(null);
-
-  // Sessionen är inte återställd när appen startar.
   const restored = ref(false);
 
-  // Hindrar flera samtidiga sessionåterställningar.
   let restorePromise = null;
+  let sessionVersion = 0;
 
   const isAuthenticated = computed(() => Boolean(getAccessToken()));
 
   const login = async (email, password) => {
     const data = await api.login(email, password);
 
+    sessionVersion++;
     name.value = data.name || null;
     restored.value = true;
 
@@ -24,6 +23,8 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const logout = async () => {
+    sessionVersion++;
+
     try {
       await api.logout();
     } finally {
@@ -34,19 +35,24 @@ export const useAuthStore = defineStore("auth", () => {
   };
 
   const restore = async () => {
-    // Om en återställning redan pågår väntar vi på samma Promise. förslag från AI
     if (restorePromise) {
       return restorePromise;
     }
 
-    // Om sessionen redan har återställts behöver vi inte anropa API:t igen.
     if (restored.value) {
       return isAuthenticated.value;
     }
 
+    const currentVersion = sessionVersion;
+
     restorePromise = (async () => {
       try {
         const data = await api.refresh();
+
+        // Ignorera resultatet om sessionen ändrats under tiden.
+        if (currentVersion !== sessionVersion) {
+          return isAuthenticated.value;
+        }
 
         if (data) {
           name.value = data.name || null;
@@ -55,12 +61,17 @@ export const useAuthStore = defineStore("auth", () => {
           name.value = null;
         }
       } catch (error) {
-        setAccessToken(null);
-        name.value = null;
+        if (currentVersion === sessionVersion) {
+          setAccessToken(null);
+          name.value = null;
+        }
 
         console.error("Session restore failed:", error);
       } finally {
-        restored.value = true;
+        if (currentVersion === sessionVersion) {
+          restored.value = true;
+        }
+
         restorePromise = null;
       }
 

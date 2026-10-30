@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { hasSession, refreshSession } from "../services/api";
+import { useAuthStore } from "../stores/auth";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -33,14 +33,15 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  let authenticated = hasSession();
+  const auth = useAuthStore();
 
-  if (!authenticated) {
-    try {
-      authenticated = await refreshSession();
-    } catch {
-      authenticated = false;
-    }
+  let authenticated;
+
+  try {
+    authenticated = await auth.restore();
+  } catch (error) {
+    console.error("Authentication check failed:", error);
+    authenticated = false;
   }
 
   if (to.meta.requiresAuth && !authenticated) {
