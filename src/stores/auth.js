@@ -45,11 +45,13 @@ export const useAuthStore = defineStore("auth", () => {
 
     const currentVersion = sessionVersion;
 
-    restorePromise = (async () => {
+    let currentPromise;
+
+    currentPromise = (async () => {
       try {
         const data = await api.refresh();
 
-        // Ignorera resultatet om sessionen ändrats under tiden.
+        // Ignorera resultatet om sessionens tillstånd har ändrats.
         if (currentVersion !== sessionVersion) {
           return isAuthenticated.value;
         }
@@ -72,13 +74,17 @@ export const useAuthStore = defineStore("auth", () => {
           restored.value = true;
         }
 
-        restorePromise = null;
+        if (restorePromise === currentPromise) {
+          restorePromise = null;
+        }
       }
 
       return isAuthenticated.value;
     })();
 
-    return restorePromise;
+    restorePromise = currentPromise;
+
+    return currentPromise;
   };
 
   return {

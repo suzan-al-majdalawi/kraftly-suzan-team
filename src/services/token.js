@@ -1,7 +1,6 @@
 import { ref } from "vue";
 
-// Access token lagras endast i minnet.
-// Den sparas aldrig i localStorage eller sessionStorage.
+// Access-token lagras endast i minnet.
 const accessToken = ref(null);
 
 export const getAccessToken = () => accessToken.value;

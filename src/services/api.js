@@ -2,6 +2,13 @@ import { getAccessToken, setAccessToken } from "./token";
 
 const API_BASE = "/api/v2";
 
+// Versionsnummer för autentiseringsoperationer.
+// Ökas vid utloggning för att förhindra att äldre operationer ändrar token.
+let authGeneration = 0;
+
+// Återanvänd samma Refresh-anrop för alla samtidiga förfrågningar.
+let refreshPromise = null;
+
 // Gemensam funktion för alla API-anrop.
 const request = async (path, options = {}) => {
   const headers = new Headers(options.headers || {});
@@ -10,7 +17,6 @@ const request = async (path, options = {}) => {
     headers.set("Content-Type", "application/json");
   }
 
-  // Lägg till access token om den finns.
   const token = getAccessToken();
 
   if (token) {
@@ -23,7 +29,6 @@ const request = async (path, options = {}) => {
     credentials: "include",
   });
 
-  // Ingen responsdata vid 204.
   if (response.status === 204) {
     return null;
   }
@@ -34,7 +39,6 @@ const request = async (path, options = {}) => {
     ? await response.json()
     : await response.text();
 
-  // Hantera API-fel och spara HTTP-status.
   if (!response.ok) {
     const message =
       typeof data === "object" && data !== null
@@ -51,8 +55,10 @@ const request = async (path, options = {}) => {
   return data;
 };
 
-// Logga in och spara access token i minnet.
+// Logga in användaren.
 export const login = async (email, password) => {
+  const currentGeneration = authGeneration;
+
   const data = await request("/auth/login", {
     method: "POST",
     body: JSON.stringify({
@@ -60,6 +66,11 @@ export const login = async (email, password) => {
       password,
     }),
   });
+
+  // Ignorera resultatet från en äldre inloggning om utloggning har påbörjats.
+  if (currentGeneration !== authGeneration) {
+    throw new Error("Login operation was cancelled");
+  }
 
   if (!data?.accessToken) {
     setAccessToken(null);
@@ -71,55 +82,85 @@ export const login = async (email, password) => {
   return data;
 };
 
-// Hämta en ny access token med hjälp av refresh-cookien.
+// Återställ sessionen med hjälp av en Refresh Cookie.
 export const refresh = async () => {
-  // Ta bort eventuell gammal access token.
-  setAccessToken(null);
-
-  try {
-    const data = await request("/auth/refresh", {
-      method: "POST",
-    });
-
-    if (!data?.accessToken) {
-      setAccessToken(null);
-      return null;
-    }
-
-    setAccessToken(data.accessToken);
-
-    return data;
-  } catch (error) {
-    setAccessToken(null);
-
-    // Ingen giltig refresh-session.
-    // Detta är normalt om användaren inte är inloggad.
-    if (error.status === 401) {
-      return null;
-    }
-
-    if (
-      error.message?.includes("Sessionen har gått ut") ||
-      error.message?.includes("Unauthorized")
-    ) {
-      return null;
-    }
-
-    // Andra fel ska fortfarande visas.
-    throw error;
+  if (refreshPromise) {
+    return refreshPromise;
   }
+
+  const currentGeneration = authGeneration;
+
+  let currentPromise;
+
+  currentPromise = (async () => {
+    try {
+      const data = await request("/auth/refresh", {
+        method: "POST",
+      });
+
+      // Spara inte token om utloggning har påbörjats.
+      if (currentGeneration !== authGeneration) {
+        return null;
+      }
+
+      if (!data?.accessToken) {
+        setAccessToken(null);
+        return null;
+      }
+
+      setAccessToken(data.accessToken);
+
+      return data;
+    } catch (error) {
+      // Ignorera resultatet från en äldre operation.
+      if (currentGeneration !== authGeneration) {
+        return null;
+      }
+
+      setAccessToken(null);
+
+      if (error.status === 401) {
+        return null;
+      }
+
+      throw error;
+    } finally {
+      if (refreshPromise === currentPromise) {
+        refreshPromise = null;
+      }
+    }
+  })();
+
+  refreshPromise = currentPromise;
+
+  return currentPromise;
 };
 
-// Namnet som används av routern.
+// Alternativt funktionsnamn som används av routern.
 export const refreshSession = refresh;
 
-// Kontrollera om access token finns i minnet.
+// Kontrollera om det finns en aktiv Access Token.
 export const hasSession = () => {
   return Boolean(getAccessToken());
 };
 
-// Logga ut och låt servern ta bort refresh-cookien.
+// Logga ut användaren och låt servern ta bort Refresh Cookie.
 export const logout = async () => {
+  // Ogiltigförklara alla autentiseringsoperationer som startades tidigare.
+  authGeneration++;
+
+  // Vänta tills en pågående Refresh-operation har avslutats
+  // för att undvika konflikter när cookien tas bort.
+  const pendingRefresh = refreshPromise;
+
+  if (pendingRefresh) {
+    try {
+      await pendingRefresh;
+    } catch {
+      // Fortsätt med utloggningen även om Refresh-operationen misslyckas.
+    }
+  }
+
   try {
     await request("/auth/logout", {
       method: "POST",
@@ -142,7 +183,7 @@ export const saveUser = (data) => {
   });
 };
 
-// Hämta förbrukning.
+// Hämta förbrukningsuppgifter.
 export const fetchConsumption = () => {
   return request("/consumption");
 };
@@ -152,7 +193,7 @@ export const fetchInvoices = () => {
   return request("/invoices");
 };
 
-// Skicka flyttanmälan.
+// Skicka en flyttanmälan.
 export const submitMove = (data) => {
   return request("/move", {
     method: "POST",
