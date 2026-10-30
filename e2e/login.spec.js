@@ -22,7 +22,7 @@ test("Här kan användaren logga in på systemet", async ({ page }) => {
     .getByPlaceholder("E-postadress")
     .fill("anna.andersson@example.com");
 
-  await page.getByPlaceholder("Lösenord").fill("sommar2026");
+  await page.getByPlaceholder("Lösenord").fill("kraftly-anna");
 
   await page.getByRole("button", { name: "Logga in" }).click();
 
