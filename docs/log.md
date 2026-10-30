@@ -1,8 +1,10 @@
 # Daily Standup – Suzan Al Majdalawi
 
-## Datum: 2026-08-28, 2026-09-01, 2026-09-14 och 2026-10-25
+## Datum: 2026-08-28, 2026-09-01, 2026-09-14, 2026-10-25 och 2026-10-29
 
-## 2026-08-28 och 2026-09-01
+---
+
+## 2026-08-28 och 2026-09-01 Individuellt arbete med M0-M1-M2
 
 ### Vad har jag gjort sedan senast?
 
@@ -136,15 +138,85 @@ Detta bekräftar de lokala kontrollerna, men innebär inte i sig att GitHub Acti
 
 ### Kvarstående arbete
 
-- [ ] Komplettera de två återstående planerade `KField`-tillgänglighetstesterna.
-- [ ] Implementera eller slutföra tillgänglighetstestet för `MoveFormView`.
-- [ ] Verifiera att samtliga relevanta tester passerar.
-- [ ] Säkerställa att CI/CD bygger Storybook och laddar upp `storybook-static` som artifact.
-- [ ] Kontrollera att GitHub Actions-jobben lyckas på en Pull Request.
-- [ ] Verifiera att obligatoriska statuskontroller är korrekt konfigurerade.
+- [x] Komplettera de två återstående planerade `KField`-tillgänglighetstesterna.
+- [x] Implementera eller slutföra tillgänglighetstestet för `MoveFormView`.
+- [x] Verifiera att samtliga relevanta tester passerar.
+- [x] Säkerställa att CI/CD bygger Storybook och laddar upp `storybook-static` som artifact.
+- [x] Kontrollera att GitHub Actions-jobben lyckas på en Pull Request.
+- [x] Verifiera att obligatoriska statuskontroller är korrekt konfigurerade.
 
 ### Aktuell status
 
 **M9 pågår fortfarande.**
 
 Den återanvändbara `KField`-komponenten, dess Storybook-stories och två tillgänglighetstester finns på plats. Ytterligare tester och verifiering av CI/CD återstår innan milstolpen kan betraktas som färdig.
+
+## 2026-10-29 – M10: Dokumentation, arkitektur och readiness
+
+### Vad har jag gjort sedan senast?
+
+Jag har påbörjat arbetet med M10, som fokuserar på att förbättra projektets dokumentation och göra Kraftly Mina sidor enklare att förstå och ta över för en ny utvecklare.
+
+Jag har gått igenom instruktionerna för M10 och de fem frågor som en ny kollega ska kunna besvara genom att läsa projektets README och dokumentation:
+
+- Hur startar jag applikationen lokalt, och hur vet jag att den fungerar?
+- Var finns hemligheterna, och hur får jag tillgång till dem?
+- Hur går en ändring till produktion, och hur gör man en rollback?
+- Varför ser arkitekturen ut som den gör, och var dokumenteras besluten?
+- Vad är känt trasigt eller medvetet inte implementerat?
+
+Jag har arbetat vidare med projektets README i root och granskat hur dokumentationen är organiserad. Målet är att README ska fungera som projektets huvudsakliga ingång och innehålla tydliga länkar till de mer detaljerade dokumenten i `docs/`.
+
+Jag har även arbetat med arkitekturdokumentationen i `docs/architecture.md`. Där ska systemets viktigaste komponenter, kommunikationsflöden och miljöer beskrivas med Mermaid-diagram. Jag har också sett över hur de arkitektoniska besluten ska dokumenteras i `docs/decisions/`.
+
+En viktig del av M10 är att dokumentationen ska beskriva projektets faktiska implementation och inte bara hur vi önskar att den fungerade.
+
+### Vad ska jag göra härnäst?
+
+Jag ska fortsätta med M10 genom att:
+
+- Förbättra README så att en ny kollega kan komma igång utan att behöva fråga teamet.
+- Kontrollera att dokumentationstabellen innehåller de relevanta filerna i `docs/`.
+- Färdigställa arkitekturskissen och kontrollera att Mermaid-diagrammen renderas korrekt på GitHub.
+- Dokumentera de viktigaste arkitektoniska besluten i `docs/decisions/`.
+- Skapa eller uppdatera `docs/readiness.md` med status och bevis för varje punkt.
+- Dokumentera kända brister i `docs/known-issues.md`.
+- Förbereda dokumentationen inför M10:s slutliga kontroll och taggning.
+
+Jag ska också kontrollera att dokumentationen stämmer med de faktiska GitHub Actions-workflowsen och deployment-processen.
+
+### Några hinder – vad var svårt?
+
+En utmaning är att säkerställa att dokumentationen beskriver den verkliga tekniska lösningen. Det är lätt att skriva hur arkitekturen borde fungera, men viktigt att kontrollera hur komponenterna faktiskt kommunicerar och var de körs.
+
+Det är också viktigt att skilja mellan sådant som är färdigt, sådant som är en känd brist och sådant som medvetet har utgått. Readiness-dokumentationen måste vara ärlig och innehålla bevis för de punkter som markeras som färdiga.
+
+En annan utmaning är att dokumentera de arkitektoniska besluten på ett sätt som förklarar varför vi valde en viss lösning, vilka alternativ vi övervägde och när beslutet kan behöva omprövas.
+
+### Vad gjorde teamet?
+
+Teamet arbetade med M10:s tre dokumentationsspår:
+
+1. README och arkitekturskissen.
+2. Arkitektoniska beslutsdokument.
+3. Readiness och kända brister.
+
+Arbetet fördelades mellan teammedlemmarna för att undvika att flera personer gjorde ändringar i samma dokument samtidigt.
+
+Vi utgick från partnerteamets granskning av vårt repository och använde deras frågor och problem som underlag för att identifiera vad som behövde förbättras.
+
+### Vem gjorde vad?
+
+Jag, Suzan Al Majdalawi, arbetade med dokumentationen för Kraftly Mina sidor och fokuserade på att göra projektet tydligare för en ny utvecklare.
+
+Jag arbetade med README, arkitekturdokumentationen och de arkitektoniska besluten. Jag granskade även hur dokumentationen kopplas till projektets CI/CD-pipeline, deployment och readiness.
+
+Jag använde ChatGPT som stöd för att förstå instruktionerna, strukturera dokumentationen och diskutera tekniska lösningar. Jag genomförde själv ändringarna i projektet och ansvarar för att kontrollera att dokumentationen stämmer med repositoryt.
+
+### Aktuell status
+
+**M10 pågår.**
+
+Arbetet fokuserar på att förbättra projektets dokumentation och säkerställa att en ny kollega kan förstå hur applikationen startas, hur arkitekturen fungerar, hur deployment genomförs och var viktiga tekniska beslut dokumenteras.
+
+Nästa steg är att färdigställa readiness-dokumentationen, dokumentera kända brister och kontrollera att samtliga krav i M10:s Definition of Done är uppfyllda.

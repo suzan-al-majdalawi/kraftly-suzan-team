@@ -217,11 +217,18 @@ För en rättvis jämförelse bör mätningar göras under jämförbara förhål
 
 Workflowen använder `actions/setup-node` med `cache: npm` och installerar beroenden med `npm ci`.
 
-Npm-cachen kan minska tiden för beroendehantering genom att återanvända tidigare nedladdade paket.
-
-Cachen garanterar dock inte att varje jobb eller hela pipelinen blir snabbare.
+Npm-cachen kan minska tiden för beroendehantering genom att återanvända tidigare nedladdade paket. Cachen garanterar dock inte att varje jobb eller hela pipelinen blir snabbare.
 
 Jämförelser före och efter en cacheändring ska baseras på dokumenterade mätningar. Om körningarna skiljer sig åt i exempelvis cache-status, runner eller belastning ska resultaten tolkas med försiktighet.
+
+Skärmdumpar från GitHub Actions används som kompletterande underlag för körningar med och utan cache. De finns dokumenterade i avsnitt 10.1.
+
+| Körning    | Dokumenterat underlag                                       |
+| ---------- | ----------------------------------------------------------- |
+| Utan cache | `img/verify-utan-cache-3.png`, `img/build_utan-cache-4.png` |
+| Med cache  | `img/verify-med-cache-7.png`, `img/build_med-cache-8.png`   |
+
+Bilderna visar observerade pipeline-körningar. En faktisk tidsvinst ska endast anges om körningarna är jämförbara och resultaten visar en förbättring.
 
 ## 7. Lokal testning
 

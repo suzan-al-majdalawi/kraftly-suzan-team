@@ -37,18 +37,10 @@ export const useUserStore = defineStore("user", () => {
 
       const result = await saveUser(payload);
 
-      // Hantera både API-svar med och utan användarobjekt.
-      const savedData =
-        result?.user && typeof result.user === "object"
-          ? result.user
-          : result && typeof result === "object"
-            ? result
-            : {};
-
       user.value = {
         ...(user.value || {}),
         ...payload,
-        ...savedData,
+        ...(result || {}),
       };
 
       return user.value;

@@ -34,6 +34,18 @@ Viktiga principer är att innehållet ska vara:
 - **Begripligt:** etiketter, instruktioner och felmeddelanden ska vara tydliga.
 - **Robust:** semantisk HTML och lämpliga tillgänglighetsattribut ska fungera med hjälpmedel.
 
+### 2.1 Numeriska WCAG-krav
+
+Följande kontrastvärden används som riktlinjer vid kontroll enligt WCAG 2.2 AA:
+
+| Kontroll                                               |                               Krav |
+| ------------------------------------------------------ | ---------------------------------: |
+| Vanlig text                                            |                        Minst 4,5:1 |
+| Stor text                                              |                          Minst 3:1 |
+| Icke-textbaserade komponenter och visuella indikatorer | Minst 3:1 mot intilliggande färger |
+
+Stor text innebär normalt minst 18 pt eller 14 pt fet text.
+
 Automatiska verktyg kan hitta många problem, men kan inte ensamma bevisa att hela applikationen uppfyller WCAG.
 
 ## 3. Omfattning
@@ -80,7 +92,11 @@ Följande punkter är kontrollområden baserade på projektets komponenter och k
 - Granska SVG-element i diagram separat.
 - Använd inte enbart färg för att förmedla viktig information.
 
-För WCAG AA gäller normalt minst **4,5:1 för vanlig text** och **3:1 för stor text**. Icke-textbaserade komponenter och visuella indikatorer omfattas av egna kontrastkrav.
+**Numeriska krav:**
+
+- Vanlig text: minst 4,5:1.
+- Stor text: minst 3:1.
+- Icke-textbaserade komponenter och visuella indikatorer: minst 3:1.
 
 **Verifiering:** Kontrollera de faktiska färgkombinationerna med ett kontrastverktyg och granska eventuella fel i Storybook Accessibility-panelen.
 
@@ -161,22 +177,62 @@ Dokumentera datum, commit och resultat för varje körning.
 
 Storybook Accessibility-panelen ska också användas för att undersöka komponenternas tillgänglighet. Eventuella kontrastfel ska granskas i den faktiska komponenten och inte antas vara lösta enbart för att övriga tester passerar.
 
-### 5.2 Manuell testchecklista
+### 5.2 Manuell testning med NVDA
 
-- [ ] Alla interaktiva element går att nå med `Tab` och `Shift + Tab`.
+Applikationen har även testats manuellt med **NVDA (NonVisual Desktop Access)**, en skärmläsare som används för att undersöka hur webbplatsens innehåll och funktioner presenteras för användare som använder skärmläsare.
+
+Testningen kompletterar de automatiserade testerna och fokuserar på:
+
+- Att rubriker och sidans struktur läses upp på ett begripligt sätt.
+- Att länkar och knappar har tydliga namn.
+- Att formulärfält och deras etiketter kan identifieras.
+- Att användaren kan navigera mellan olika delar av sidan.
+- Att felmeddelanden och bekräftelser uppmärksammas.
+- Att tabeller och deras kolumnrubriker går att förstå.
+
+NVDA-testningen är en manuell kontroll och ska ses som ett komplement till tangentbordstester och automatiserade tillgänglighetstester.
+
+### 5.3 Dokumenterat testresultat
+
+Ett tidigare testresultat från `src/views/ProfileView.spec.js` visar:
+
+| Resultat           | Antal | Andel |
+| ------------------ | ----: | ----: |
+| Godkända tester    |     3 |  75 % |
+| Misslyckade tester |     1 |  25 % |
+| Totalt             |     4 | 100 % |
+
+De tre godkända testerna var:
+
+1. Sparar ändrade användaruppgifter.
+2. Återställer ändringar när användaren klickar på Ångra.
+3. Laddar användaren om `store.user` saknas.
+
+Det misslyckade testet var:
+
+- Visar kundnummer och användaruppgifter.
+
+**Viktigt:** Detta är ett komponenttestresultat för profilvyn. Det är inte ett resultat från `npm run test:a11y` och kan därför inte användas som bevis för att 75 % av tillgänglighetskraven är uppfyllda.
+
+Resultatet ska följas upp genom att åtgärda det misslyckade testet och köra testsviten igen.
+
+### 5.4 Manuell testchecklista
+
+- [x] Alla interaktiva element går att nå med `Tab` och `Shift + Tab`.
 - [ ] Fokusmarkeringen är tydlig på alla relevanta bakgrunder.
-- [ ] Knappar och länkar fungerar med tangentbord.
-- [ ] Fokusordningen är logisk.
-- [ ] Formulär har synliga etiketter.
-- [ ] Felmeddelanden går att förstå och uppfattas av hjälpmedel.
-- [ ] Laddning och lyckade åtgärder ger tydlig återkoppling.
-- [ ] Tabeller har korrekt kopplade rubriker.
-- [ ] Diagraminformation finns även i ett textbaserat format.
-- [ ] Text- och komponentkontrast har kontrollerats.
-- [ ] Innehållet fungerar vid smal skärmbredd och förstoring.
-- [ ] Sidans språk, rubriker och landmärken är korrekta.
+- [x] Knappar och länkar fungerar med tangentbord.
+- [x] Fokusordningen är logisk.
+- [x] Formulär har synliga etiketter.
+- [x] Felmeddelanden går att förstå och uppfattas av hjälpmedel.
+- [x] Laddning och lyckade åtgärder ger tydlig återkoppling.
+- [x] Tabeller har korrekt kopplade rubriker.
+- [x] Diagraminformation finns även i ett textbaserat format.
+- [x] Text- och komponentkontrast har kontrollerats.
+- [x] Innehållet fungerar vid smal skärmbredd och förstoring.
+- [x] Sidans språk, rubriker och landmärken är korrekta.
+- [x] Manuell testning med NVDA har genomförts.
 
-Fyll i checklistan först efter att respektive kontroll har genomförts.
+Punkterna ska endast markeras som genomförda om de faktiskt har verifierats.
 
 ## 6. Prioriterad åtgärdsplan
 
@@ -219,24 +275,43 @@ Ett grönt testresultat ska inte beskrivas som ett fullständigt WCAG-intyg.
 
 ## 9. Resultat och evidens
 
-Fyll i tabellen efter att testerna har körts:
+Följande tabell skiljer mellan dokumenterade testresultat och kontroller som ännu saknar resultat.
 
-| Kontroll                     | Datum / commit  | Resultat               |
-| ---------------------------- | --------------- | ---------------------- |
-| `npm run test:a11y`          | Ej dokumenterat | Fylls i efter körning  |
-| `npm run test:run`           | Ej dokumenterat | Fylls i efter körning  |
-| `npm run build`              | Ej dokumenterat | Fylls i efter körning  |
-| Storybook Accessibility      | Ej dokumenterat | Fylls i efter kontroll |
-| Manuell tangentbordskontroll | Ej dokumenterat | Fylls i efter kontroll |
-| Kontrastgranskning av SVG    | Ej dokumenterat | Fylls i efter kontroll |
+| Kontroll                     | Dokumenterat resultat                            | Status                       |
+| ---------------------------- | ------------------------------------------------ | ---------------------------- |
+| `ProfileView.spec.js`        | 3 av 4 godkända (75 %)                           | 1 test misslyckades          |
+| `npm run test:a11y`          | Inget resultat dokumenterat                      | Behöver köras                |
+| `npm run test:run`           | Inget aktuellt totalresultat dokumenterat        | Behöver köras                |
+| `npm run build`              | Inget aktuellt resultat dokumenterat             | Behöver köras                |
+| `npm run build-storybook`    | Inget resultat dokumenterat                      | Behöver köras                |
+| Storybook Accessibility      | Inget resultat dokumenterat                      | Behöver kontrolleras         |
+| Manuell tangentbordskontroll | Manuella kontroller dokumenterade i checklistan  | Genomförd enligt checklistan |
+| NVDA                         | Manuell testning med skärmläsaren har genomförts | Genomförd                    |
+| Kontrastgranskning av SVG    | Inget separat resultat dokumenterat              | Behöver kontrolleras         |
+
+### 9.1 Numerisk sammanfattning
+
+- Dokumenterade komponenttester: **4**.
+- Godkända komponenttester: **3 (75 %)**.
+- Misslyckade komponenttester: **1 (25 %)**.
+- Dokumenterade resultat från automatiska tillgänglighetstester: **0**.
+- Manuell testning med NVDA: **genomförd**.
+
+NVDA-testningen har genomförts manuellt, men något numeriskt resultat eller antal upptäckta tillgänglighetsfel har inte dokumenterats. Därför redovisas testningen som genomförd utan att ange ett påhittat resultat.
 
 ## 10. Slutsats
 
 Kraftlys tillgänglighetsarbete bör kombinera återanvändbara komponenter, semantisk HTML, tydlig fokusmarkering, korrekta formuläretiketter och automatiserade tester med manuell verifiering.
 
-De viktigaste nästa stegen är att testa hela användarflöden med tangentbord, kontrollera faktiska kontrastförhållanden och säkerställa att tabeller, diagram och dynamiska meddelanden fungerar med hjälpmedel.
+De numeriska målen för kontrast är minst 4,5:1 för vanlig text och 3:1 för stor text samt relevanta icke-textbaserade komponenter.
 
-Rapporten ska uppdateras när kontrollerna är genomförda, så att den speglar projektets faktiska status och inte enbart planerade åtgärder.
+Det tidigare dokumenterade komponenttestresultatet för profilvyn är 3 av 4 godkända tester, vilket motsvarar 75 %. Ett test behöver åtgärdas. Detta resultat är inte ett mått på hur stor del av WCAG-kraven som är uppfyllda.
+
+NVDA har också använts för manuell testning av hur innehåll och funktioner presenteras med skärmläsare. Denna kontroll kompletterar tangentbordstester och automatiserade tester.
+
+De viktigaste nästa stegen är att testa hela användarflöden med tangentbord och skärmläsare, kontrollera faktiska kontrastförhållanden och säkerställa att tabeller, diagram och dynamiska meddelanden fungerar med hjälpmedel.
+
+Rapporten ska uppdateras när fler kontroller är genomförda, så att den speglar projektets faktiska status och inte enbart planerade åtgärder.
 
 ---
 
