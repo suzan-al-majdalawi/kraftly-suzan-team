@@ -2,6 +2,29 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import { fetchUser, saveUser } from "../services/api";
 
+// Normaliserar API-svaret, oavsett om det har formatet { user: {...} } eller {...}.
+const normalizeUser = (result, allowEmpty = false) => {
+  if (result === null && allowEmpty) {
+    return {};
+  }
+
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error("Invalid user data returned from API");
+  }
+
+  const normalized = result.user ?? result;
+
+  if (
+    !normalized ||
+    typeof normalized !== "object" ||
+    Array.isArray(normalized)
+  ) {
+    throw new Error("Invalid user data returned from API");
+  }
+
+  return normalized;
+};
+
 export const useUserStore = defineStore("user", () => {
   const user = ref(null);
   const loading = ref(false);
@@ -13,7 +36,9 @@ export const useUserStore = defineStore("user", () => {
     error.value = "";
 
     try {
-      user.value = await fetchUser();
+      const result = await fetchUser();
+      user.value = normalizeUser(result);
+
       return user.value;
     } catch (e) {
       error.value = "Kunde inte hämta användaruppgifter.";
@@ -30,25 +55,18 @@ export const useUserStore = defineStore("user", () => {
 
     try {
       const payload = {
-        name: data.name.trim(),
-        email: data.email.trim(),
-        address: data.address.trim(),
+        name: String(data.name ?? "").trim(),
+        email: String(data.email ?? "").trim(),
+        address: String(data.address ?? "").trim(),
       };
 
       const result = await saveUser(payload);
-
-      // Hantera både API-svar med och utan användarobjekt.
-      const savedData =
-        result?.user && typeof result.user === "object"
-          ? result.user
-          : result && typeof result === "object"
-            ? result
-            : {};
+      const normalizedResult = normalizeUser(result, true);
 
       user.value = {
         ...(user.value || {}),
         ...payload,
-        ...savedData,
+        ...normalizedResult,
       };
 
       return user.value;

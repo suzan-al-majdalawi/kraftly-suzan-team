@@ -62,6 +62,7 @@
 import { computed, onMounted, defineAsyncComponent } from "vue";
 import { useUserStore } from "../stores/user";
 import { useConsumptionStore } from "../stores/consumption";
+import NorwayNotice from "../components/NorwayNotice.vue";
 
 const ConsumptionChart = defineAsyncComponent(
   () => import("../components/ConsumptionChart.vue"),
