@@ -52,7 +52,7 @@
 
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { login } from "../services/api";
 import KButton from "../components/KButton.vue";
 import KField from "../components/KField.vue";
@@ -61,7 +61,9 @@ const email = ref("");
 const password = ref("");
 const error = ref("");
 const loading = ref(false);
+
 const router = useRouter();
+const route = useRoute();
 
 const handleLogin = async () => {
   if (loading.value) return;
@@ -71,7 +73,20 @@ const handleLogin = async () => {
 
   try {
     await login(email.value.trim(), password.value);
-    await router.push("/");
+
+    // Hämta sidan som användaren försökte öppna.
+    const redirect = route.query.redirect;
+
+    // Tillåt endast interna adresser.
+    if (
+      typeof redirect === "string" &&
+      redirect.startsWith("/") &&
+      !redirect.startsWith("//")
+    ) {
+      await router.replace(redirect);
+    } else {
+      await router.replace("/");
+    }
   } catch (e) {
     console.error("Login failed:", e);
 
