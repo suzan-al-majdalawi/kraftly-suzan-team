@@ -77,6 +77,7 @@ Kopiera exempelkonfigurationen:
 
 ```bash
 cp .env.example .env
+cp .env.example mock-api/.env
 ```
 
 ### Alternativ 1 – Kör med Docker
@@ -217,12 +218,13 @@ Mer information:
 Kör relevanta tester innan du skickar in en pull request.
 
 ```bash
-npm run test:run   # Enhets- och komponenttester med Vitest
-npm run test:api   # API-tester med node:test
-npm run test:a11y  # Tillgänglighetstester med axe
-npm run storybook  # Startar Storybook
-npm run e2e:pw     # E2E-smoke med Playwright
-npm run build      # Produktionsbygge till dist/
+npm run test:run    # Enhets- och komponenttester med Vitest
+npm run test:a11y   # Tillgänglighetstester med axe
+npm run storybook   # Startar Storybook
+npm run e2e:pw      # E2E-tester med Playwright
+npm ci
+npm audit fix       # npm audit fix --force
+npm run build       # Produktionsbygge till dist/
 ```
 
 För Playwright kan Chromium behöva installeras:
@@ -245,9 +247,9 @@ Mer information finns i [prestandadokumentationen](docs/performance.md) och [til
 
 ## CI/CD-pipeline
 
-GitHub Actions-arbetsflödet definieras i `.github/workflows/ci.yml`.
+GitHub Actions-arbetsflödet definieras bland annat i `.github/workflows/cd.yml`.
 
-Arbetsflödet innehåller bland annat:
+Arbetsflödet innehåller automatiserade kontroller och byggen, bland annat:
 
 - Tillgänglighetstester.
 - Enhets- och komponenttester.
@@ -368,6 +370,10 @@ Kom igång:
 cp .env.example .env
 npm install
 npm run test:run
+npx playwright test --headed
+
+npx playwright test
+npx playwright show-report
 ```
 
 ### Tre PR:ar att granska
@@ -379,7 +385,8 @@ Exempel för den första patchen:
 ```bash
 git switch -c pr-a-kundnummer
 git apply labb/pr-a-kundnummer.patch
-git commit -am "Visa kundnummer och senaste faktura"
+git add .
+git commit -m "feat: show customer number and latest invoice"
 git push -u origin pr-a-kundnummer
 gh pr create --fill
 git switch main
@@ -397,7 +404,7 @@ Läs diffen innan du läser AI-kommentaren. Jämför sedan din egen granskning m
 
 Nyckeln `ANTHROPIC_API_KEY` ska läggas till som en GitHub Actions Secret under **Settings → Secrets and variables → Actions**.
 
-Lokalt ska nyckeln endast finnas som en miljövariabel i terminalen. Lägg aldrig in den i en fil som committas, eller dela den i Slack eller Canvas.
+Lokalt ska nyckeln endast finnas som en miljövariabel i terminalen. Lägg aldrig in den i en fil som committas eller dela den i Slack eller Canvas.
 
 ### Lokal AI-granskning
 
@@ -420,13 +427,13 @@ Information om hur deployment, hemligheter och rollback fungerar finns i [docs/d
 
 Viktiga tekniska beslut dokumenteras i `docs/decisions/`.
 
-| Beslut                                                                                 | Beskrivning                          | Status     |
-| -------------------------------------------------------------------------------------- | ------------------------------------ | ---------- |
-| [ADR 001 – Rendering och hosting](docs/decisions/rendering.md)                         | Val av rendering och hosting         | Godkänt    |
-| [ADR 002 – Tokenlagring](docs/decisions/tokenlagring.md)                               | Hur access- och refresh-token lagras | Godkänt    |
-| [ADR 003 – Användarroller och behörigheter](docs/decisions/roller-och-behorigheter.md) | Roller och åtkomst till funktioner   | Föreslaget |
-| [ADR 004 – Feature flags](docs/decisions/feature-flags.md)                             | Aktivering av funktioner per miljö   | Godkänt    |
-| [ADR 005 – E2E-tester](docs/decisions/e2e-testing.md)                                  | Valet av Playwright för E2E-tester   | Godkänt    |
+| Beslut                                           | Beskrivning                            | Status     |
+| ------------------------------------------------ | -------------------------------------- | ---------- |
+| [Rendering](docs/decisions/rendering.md)         | Valet att behålla Vue och Vite som SPA | Föreslaget |
+| [Hosting](docs/decisions/hosting.md)             | Val av hosting för testmiljön          | Godkänt    |
+| [Feature flags](docs/decisions/feature-flags.md) | Stöd för Norge bakom en feature flag   | Godkänt    |
+| [Tokenlagring](docs/decisions/tokenlagring.md)   | Hur access- och refresh-token lagras   | Godkänt    |
+| [E2E-verktyg](docs/decisions/e2e-verktyg.md)     | Valet av Playwright för E2E-tester     | Godkänt    |
 
 Läs [ADR-registret](docs/decisions/README.md) för mer information.
 
@@ -516,7 +523,7 @@ Tillgänglighetsarbetet och dess verifieringsstatus dokumenteras i `docs/milesto
 ## Säkerhet
 
 - Lägg aldrig API-nycklar, åtkomsttoken eller andra hemligheter i Git.
-- Lagra deploymentsnycklar och autentiseringsuppgifter i GitHub Actions Secrets eller motsvarande säker lagring.
+- Lagra deploymentnycklar och autentiseringsuppgifter i GitHub Actions Secrets eller motsvarande säker lagring.
 - Använd testuppgifter endast i avsedda testmiljöer.
 - Publicera aldrig lösenord i README-filen.
 - Kontrollera att API-nycklar hanteras på serversidan och inte exponeras i publika frontendfiler.
@@ -527,4 +534,4 @@ Tillgänglighetsarbetet och dess verifieringsstatus dokumenteras i `docs/milesto
 **Projekt:** Kraftly – Mina sidor  
 **Leverantör:** Webbmakarna AB  
 **Ursprungligt leveransdatum:** 2026-06-30  
-**Senast uppdaterad:** 2026-10-30
+**Senast uppdaterad:** 2026-10-31

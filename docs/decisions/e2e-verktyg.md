@@ -1,6 +1,7 @@
 # Beslut: verktyg för E2E-tester
 
-**Datum:** 2026-08-28 2026-08-31-08 2026-09-01
+**Datum:** 2026-08-28, 2026-08-31, 2026-09-01  
+**Senast uppdaterad:** 2026-10-30  
 **Beslut:** Vi använder **Playwright** för end-to-end-tester.
 
 ## Bakgrund
@@ -30,7 +31,11 @@ Vi ger upp möjligheten att använda Cypress, som teamet redan har erfarenhet av
 
 ## Smoke-test
 
-Vårt Playwright-smoketest finns i:
+Våra Playwright-tester finns i mappen:
+
+`e2e/`
+
+Smoke-testet finns i:
 
 `e2e/smoke.spec.js`
 
@@ -40,41 +45,161 @@ Det kan köras med:
 npm run e2e:pw
 ```
 
-Smoke-testet kontrollerar att startsidan laddas korrekt.
+### Vad testerna kontrollerar
 
-## Aktuell teststatus
+Vi har nu fem aktiva Playwright-tester som kontrollerar:
 
-Vi har även arbetat med komponenttester för `ProfileView` med Vitest och Vue Test Utils.
+- Att kunden kan logga in och se sin översikt.
+- Att fel lösenord inte ger tillgång till systemet.
+- Att ingen autentiseringstoken sparas i `localStorage` vid misslyckad inloggning.
+- Att en användare som inte är inloggad skickas till `/login`.
+- Att användaren skickas tillbaka till den skyddade sidan `/fakturor` efter lyckad inloggning och kan se rätt faktura.
 
-Filen är:
+## Vad vi åtgärdade den 30 oktober 2026
 
-`src/views/ProfileView.spec.js`
+Vi felsökte och förbättrade inloggningsflödet och Playwright-testerna. Det största problemet var att användaren inte kom tillbaka till den sida som användaren försökte öppna innan inloggningen.
 
-Just nu innehåller testfilen **4 tester**:
+### 1. Uppdatering av `src/router/index.js`
 
-- 3 tester passerar.
-- 1 test misslyckas.
+Tidigare skickades användaren direkt till `/login` om användaren försökte öppna en skyddad sida utan att vara inloggad.
 
-Det misslyckade testet är:
+Den tidigare koden var:
 
-`visar kundnummer och användaruppgifter`
+```js
+if (to.meta.requiresAuth && !authenticated) {
+  return "/login";
+}
 
-De tre tester som passerar är:
-
-- `sparar ändrade användaruppgifter`
-- `återställer ändringar när användaren klickar på Ångra`
-- `laddar användaren om store.user saknas`
-
-Testresultatet är alltså just nu:
-
-```text
-src/views/ProfileView.spec.js
-4 tester | 1 misslyckades
-
-3 passed
-1 failed
+if (to.meta.guestOnly && authenticated) {
+  return "/";
+}
 ```
 
-Det misslyckade testet behöver felsökas och rättas innan komponenttesterna är helt gröna.
+Problemet var att routern inte sparade vilken sida användaren försökte besöka. Efter inloggning skickades användaren därför alltid till startsidan `/` i stället för till den ursprungliga sidan.
 
-Detta påverkar inte beslutet att använda Playwright som E2E-verktyg. `ProfileView.spec.js` är ett komponenttest med Vitest, medan `e2e/smoke.spec.js` är vårt E2E-test med Playwright.
+Vi uppdaterade därför `src/router/index.js` med följande kod:
+
+```js
+if (to.meta.requiresAuth && !authenticated) {
+  return {
+    path: "/login",
+    query: { redirect: to.fullPath },
+  };
+}
+
+if (to.meta.guestOnly && authenticated) {
+  const redirect = to.query.redirect;
+
+  if (
+    typeof redirect === "string" &&
+    redirect.startsWith("/") &&
+    !redirect.startsWith("//")
+  ) {
+    return redirect;
+  }
+
+  return "/";
+}
+```
+
+Den nya lösningen innebär att:
+
+- Användaren skickas till `/login` när användaren försöker öppna en skyddad sida utan att vara inloggad.
+- Den ursprungliga adressen sparas i query-parametern `redirect`.
+- Efter lyckad inloggning kan användaren skickas tillbaka till rätt sida, exempelvis `/fakturor`.
+- Redirect-värdet kontrolleras så att användaren bara skickas till en intern sökväg och inte till en extern adress.
+- Om ingen giltig redirect finns skickas användaren till startsidan `/`.
+
+Vi behöll övriga delar av routern, inklusive routes för `/login`, `/`, `/fakturor`, `/flytt` och `/profil`.
+
+### 2. Uppdatering av `LoginView.vue`
+
+Vi uppdaterade även inloggningskomponenten `LoginView.vue` så att den kan läsa redirect-värdet från routern.
+
+Efter lyckad inloggning kontrolleras om det finns en giltig redirect i URL:en. Om det finns en sådan skickas användaren tillbaka till den ursprungliga sidan med `router.replace()`. Om ingen giltig redirect finns skickas användaren till startsidan `/`.
+
+Detta gör att inloggningsflödet fungerar tillsammans med den uppdaterade router-guarden.
+
+### 3. Korrigering av Playwright-testet
+
+Vi korrigerade sökningen efter fakturan `F-2026-06` i `e2e/smoke.spec.js`.
+
+Tidigare använde vi rollen `cell`, men fakturan ligger i en tabellrad med rollen `rowheader`. Därför ändrade vi testet till:
+
+```js
+await expect(
+  page.getByRole("rowheader", {
+    name: "F-2026-06",
+    exact: true,
+  }),
+).toBeVisible();
+```
+
+Efter ändringen hittar Playwright fakturan med rätt tillgänglighetsroll.
+
+### 4. Stabilare tester
+
+Vi tog bort onödiga extra klick och fasta väntetider (`waitForTimeout`). I stället använder vi Playwrights automatiska väntan med `expect`.
+
+Det gör testerna tydligare och minskar risken för instabila tester.
+
+### Resultat av ändringarna
+
+Efter ändringarna fungerar redirect-flödet som förväntat. En användare kan försöka öppna en skyddad sida, logga in och sedan komma tillbaka till rätt sida.
+
+Alla fem Playwright-tester passerar.
+
+## Aktuell teststatus – Playwright
+
+<badge color="success">5 passed</badge>
+
+Senaste körningen av:
+
+```powershell
+npm run e2e:pw
+```
+
+Resultat:
+
+```text
+5 passed
+0 failed
+```
+
+Alla fem aktiva Playwright-tester passerar.
+
+## Tillgänglighetstest med Vitest
+
+Vi har även arbetat med ett tillgänglighetstest för inloggningssidan `LoginView.vue`.
+
+Testfil:
+
+`src/a11y/LoginView.a11y.test.js`
+
+Testet kontrollerar:
+
+- Att inloggningssidan inte har några identifierade tillgänglighetsproblem med axe.
+- Att fälten för e-postadress och lösenord är kopplade till synliga etiketter.
+
+Testet körs med:
+
+```powershell
+npx vitest run src/a11y/LoginView.a11y.test.js
+```
+
+**Resultat:** Testet passerar. Båda kontrollerna är gröna.
+
+## Skillnaden mellan E2E-test och komponenttest
+
+Vi använder två olika typer av tester:
+
+- **Playwright:** Testar hela användarflöden i webbläsaren, till exempel inloggning och navigering.
+- **Vitest:** Testar komponenter och tillgänglighet, till exempel `LoginView.vue`.
+
+Dessa tester kompletterar varandra. Playwright kontrollerar att användarflöden fungerar medan Vitest kontrollerar komponenternas funktion och tillgänglighet.
+
+## Slutsats
+
+Vi fortsätter att använda Playwright som verktyg för E2E-tester. Den 30 oktober 2026 åtgärdade vi redirect-problemet efter inloggning genom att uppdatera `src/router/index.js` och `LoginView.vue`. Vi korrigerade även fakturalokaliseringen i Playwright-testet och förbättrade testernas stabilitet.
+
+Resultatet är att alla fem Playwright-tester nu passerar. Vi har även ett godkänt tillgänglighetstest för `LoginView.vue` med Vitest och axe.
