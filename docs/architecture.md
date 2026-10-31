@@ -263,5 +263,5 @@ Arkitekturens viktigaste beslut dokumenteras i
 - [Tokenlagring](decisions/tokenlagring.md) – access token och refresh-cookie.
 - [Feature flags](decisions/feature-flags.md) – runtime-konfiguration för Norge.
 - [Rendering](decisions/rendering.md) – varför vi behåller Vue SPA med Vite.
-- [E2E-tester](decisions/e2e-testing.md) – varför vi använder Playwright.
+- [E2E-tester](decisions/testing.md) – varför vi använder Playwright.
 - [Tillgänglighetsanalys](decisions/tillganglighetsanalys.md) – riskområden, åtgärdsplan och verifiering av tillgänglighet.

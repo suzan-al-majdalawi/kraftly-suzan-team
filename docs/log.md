@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-11-02 – generalrepetition slutdemon
+
+- **Vilka var med:** [Fyll i namn på deltagarna]
+- **Hur lång den blev:** [Fyll i antal] min (mål: 10 min)
+- **Vad som ändrades i körschemat:** [Beskriv eventuella ändringar, eller skriv "Inga ändringar"]
+- **Reserven provad:** Ja / Nej – [Beskriv om skärmdumparna eller inspelningen fungerade och om reservplanen kunde genomföras]
+
+Tech lead, på main, efter att sista PR:en mergats och pipelinen på main är grön:
+
+git checkout main && git pull
+npm ci
+npm run test:run
+npm run build
+gh run list --branch main --limit 1 # senaste körningen på main: completed, success
+grep -o 'docs/[A-Za-z0-9/_.-]*' README.md | sort -u | xargs ls -d # varje fil README pekar på finns
+git tag -a M10 -m "M10 – Feature freeze"
+git push origin M10
+
+---
+
 ## 2026-08-28 och 2026-09-01 Individuellt arbete med M0-M1-M2
 
 ### Vad har jag gjort sedan senast?
