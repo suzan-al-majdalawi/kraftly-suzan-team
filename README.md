@@ -33,13 +33,7 @@ Kontrollera alltid vilken commit som körs i miljön innan en release betraktas 
 
 Följande bilder visar applikationens huvudsakliga vyer.
 
-<p align="center">
-  <img src="docs/img/sidor/login.png" alt="Inloggningssidan" width="18%" />
-  <img src="docs/img/sidor/dashboard.png" alt="Kundens dashboard" width="18%" />
-  <img src="docs/img/sidor/fakturor.png" alt="Fakturavyn" width="18%" />
-  <img src="docs/img/sidor/flytt.png" alt="Flyttformuläret" width="18%" />
-  <img src="docs/img/sidor/profil.png" alt="Profilsidan" width="18%" />
-</p>
+### Inloggning, Dashboard, Fakturor, Flyttanmälan och Profil
 
 | Sida         | Route       |
 | ------------ | ----------- |
@@ -48,6 +42,14 @@ Följande bilder visar applikationens huvudsakliga vyer.
 | Fakturor     | `/fakturor` |
 | Flyttanmälan | `/flytt`    |
 | Profil       | `/profil`   |
+
+<p align="center">
+  <img src="docs/img/sidor/login.png" alt="Inloggningssidan" width="18%" height="250" style="object-fit: contain;" />
+  <img src="docs/img/sidor/dashboard.png" alt="Kundens dashboard" width="18%" height="250" style="object-fit: contain;" />
+  <img src="docs/img/sidor/fakturor.png" alt="Fakturavyn" width="18%" height="250" style="object-fit: contain;" />
+  <img src="docs/img/sidor/flytt.png" alt="Flyttformuläret" width="18%" height="250" style="object-fit: contain;" />
+  <img src="docs/img/sidor/profil.png" alt="Profilsidan" width="18%" height="250" style="object-fit: contain;" />
+</p>
 
 ## Kom igång
 
