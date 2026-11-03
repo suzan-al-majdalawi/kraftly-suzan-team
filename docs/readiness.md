@@ -43,9 +43,24 @@ Raderna ska markeras `saknas` där status inte kan avgöras från tillgängliga 
 |                                | Tangentbordsgenomgång före/efter                      | Axe ser inte allt                                                            | Före- och eftertabellerna i `docs/accessibility.md`                                                                                       | M8      | känd brist           |
 | Automation och hållbarhet      | Storybook-jobbet i pipelinen                          | Det som bara körs lokalt körs inte                                           | Jobbet _Storybook_ i pipelinen, required check                                                                                            | M9      | klart                |
 |                                | AI-steg utvärderat                                    | AI i flödet utan utvärdering är brus                                         | Tabellen träff / miss / oavgjord på minst tre riktiga PR:ar, två exempel (en träff, en miss) och teamets regel i `docs/ai-in-pipeline.md` | M9      | känd brist           |
-|                                | Hållbarhetsanalys med siffror                         | Bytes är energi                                                              | `docs/sustainability.md`                                                                                                                  | M9      | klart                |
+|                                | Hållbarhetsanalys med siffror                         | Bytes är energi                                                              | `docs/sustainability.md` och mätning efter M7 med `scripts/co2.mjs`                                                                       | M9      | klart                |
 | Dokumentation                  | README, beslutsdokument, arkitekturskiss              | Nästa team ska kunna ta över                                                 | `docs/` komplett, nya kollegan-testet klarat, `docs/readiness.md` ifylld                                                                  | M10     | klart                |
 |                                | Inga kända kritiska brister                           | Det som är kvar är medvetet, och skrivet                                     | `docs/known-issues.md` (brist · påverkan · varför), ingen kritisk kvar                                                                    | M10     | känd brist           |
 | Release                        | Taggad release, demo live i prod                      | Det är det här allt handlade om                                              | `v1.0`, slutdemon                                                                                                                         | v.12    | v.12                 |
+
+## Hållbarhetsmätning efter M7
+
+Mätningen efter M7 har genomförts med `scripts/co2.mjs`.
+
+| Mätvärde                     | Resultat |
+| ---------------------------- | -------: |
+| Överförd datamängd per besök |   334 kB |
+| CO₂e per besök – Sverige     |  0,020 g |
+| CO₂e per månad – Sverige     |   2,5 kg |
+| CO₂e per månad – globalt     |   6,2 kg |
+
+Resultatet är en modellbaserad uppskattning som bygger på antaganden om trafik, energianvändning och utsläppsfaktorer. Det ska inte betraktas som en direkt uppmätt klimatpåverkan.
+
+En jämförbar mätning före M7 saknas. Resultatet kan därför användas som referensvärde för framtida mätningar, men det räcker inte för att fastställa en numerisk förbättring före och efter M7.
 
 > **Ändrat 12/10:** M9 är gjord liten med flit. Stories för samtliga komponenter och ett axe-test per formulärvy utgår ur kursen – de är borttagna, inte flyttade. I pipelinen räcker jobbet _Storybook_; något eget axe-jobb behövs inte.
