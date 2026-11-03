@@ -33,6 +33,21 @@ Projektet innehåller bland annat:
 
 Följande bilder visar applikationens huvudsakliga vyer.
 
+### Inloggning, Dashboard och Fakturor
+
+<p align="center">
+  <img src="docs/img/sidor/login.png" alt="Inloggningssidan" width="30%" />
+  <img src="docs/img/sidor/dashboard.png" alt="Kundens dashboard" width="30%" />
+  <img src="docs/img/sidor/fakturor.png" alt="Fakturavyn" width="30%" />
+</p>
+
+### Flyttanmälan och Profil
+
+<p align="center">
+  <img src="docs/img/sidor/flytt.png" alt="Flyttformuläret" width="45%" />
+  <img src="docs/img/sidor/profil.png" alt="Profilsidan" width="45%" />
+</p>
+
 | Sida         | Route       | Skärmbild                      |
 | ------------ | ----------- | ------------------------------ |
 | Inloggning   | `/login`    | `docs/img/sidor/login.png`     |
@@ -40,26 +55,6 @@ Följande bilder visar applikationens huvudsakliga vyer.
 | Fakturor     | `/fakturor` | `docs/img/sidor/fakturor.png`  |
 | Flyttanmälan | `/flytt`    | `docs/img/sidor/flytt.png`     |
 | Profil       | `/profil`   | `docs/img/sidor/profil.png`    |
-
-### Inloggning
-
-![Inloggningssidan](docs/img/sidor/login.png)
-
-### Dashboard
-
-![Kundens dashboard](docs/img/sidor/dashboard.png)
-
-### Fakturor
-
-![Fakturavyn](docs/img/sidor/fakturor.png)
-
-### Flyttanmälan
-
-![Flyttformuläret](docs/img/sidor/flytt.png)
-
-### Profil
-
-![Profilsidan](docs/img/sidor/profil.png)
 
 _Kontrollera att bildfilerna finns i `docs/img/sidor/` och att filnamnen stämmer med bilderna i projektet._
 
