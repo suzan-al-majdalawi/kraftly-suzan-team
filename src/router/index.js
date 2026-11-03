@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { getSafeRedirect } from "../utils/redirect";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,21 +36,24 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
-  let authenticated;
+  let authenticated = false;
 
   try {
     authenticated = await auth.restore();
   } catch (error) {
     console.error("Authentication check failed:", error);
-    authenticated = false;
   }
 
   if (to.meta.requiresAuth && !authenticated) {
-    return "/login";
+    return {
+      path: "/login",
+      query: { redirect: to.fullPath },
+    };
   }
 
   if (to.meta.guestOnly && authenticated) {
-    return "/";
+    const redirect = getSafeRedirect(to.query.redirect);
+    return redirect;
   }
 
   return true;

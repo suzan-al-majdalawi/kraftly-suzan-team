@@ -1,5 +1,95 @@
 # Rendering Decision – Kraftly Customer Portal
 
+# Beslut: rendering
+
+**Datum:** 2026-10-30  
+**Status:** Föreslaget  
+**Beslut:** Vi fortsätter att rendera Kraftly Mina sidor som en SPA med Vue och Vite.
+
+## Bakgrund
+
+Vi behövde välja hur Kraftly Mina sidor ska renderas och jämföra olika alternativ utifrån portalens behov, prestanda, säkerhet och drift.
+
+## Jämförelse
+
+| Fråga                              | SPA                                                                                          | SSR                                                                                              | SSG                                                                                                                         |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| När skapas HTML?                   | I webbläsaren vid varje besök. JavaScript bygger sidan efter att `index.html` har laddats.   | På servern vid varje besök. Färdig HTML skickas till webbläsaren för varje förfrågan.            | Vid byggtillfället. Färdig HTML genereras för utvalda routes.                                                               |
+| Vilken typ av sida passar det för? | Applikationer bakom inloggning, exempelvis dashboards och kundportaler med data från API:er. | Publika sidor där innehållet ändras ofta och behöver anpassas efter varje besökare.              | Publika sidor med innehåll som ändras sällan och kan förgenereras.                                                          |
+| Syns innehållet före JavaScript?   | Nej, inte huvudinnehållet. Webbläsaren behöver köra JavaScript för att bygga sidan.          | Ja, HTML-innehållet finns med i det första svaret från servern.                                  | Ja, för de sidor som har förgenererats. Dynamisk data efter inloggning hanteras separat.                                    |
+| Drift                              | Statiska filer som kan levereras via exempelvis Nginx. Ingen separat renderingsserver krävs. | Kräver en server, exempelvis Node.js eller en serverless-lösning, som behöver drivas och skalas. | Statiska filer som kan levereras via exempelvis Nginx. Bygget blir mer omfattande eftersom HTML genereras vid varje deploy. |
+
+## Motivering
+
+### Ska sidan hittas eller delas?
+
+I nuläget behöver Kraftly Mina sidor inte vara sökbar eller fungera som en publik informationssida. Portalen är avsedd för befintliga kunder och innehållet visas först efter inloggning.
+
+Om publika sidor för marknadsföring eller information till potentiella kunder tillkommer i framtiden kan renderingsstrategin omprövas.
+
+### Behöver innehållet synas före inloggning?
+
+Nej. Användare som inte är inloggade skickas automatiskt till `/login`. Det finns därför inget större innehåll som behöver visas eller indexeras innan inloggning.
+
+### Är vi beredda att drifta en separat renderingsserver?
+
+Nej, inte i nuläget. SSR skulle innebära ytterligare drift och underhåll utan tillräcklig nytta för portalens nuvarande användningsområde.
+
+### Kan prestandan förbättras utan att byta renderingsteknik?
+
+Ja. Vi kan först optimera den befintliga SPA-lösningen genom exempelvis koddelning, lazy loading, minskad JavaScript-mängd och optimering av resurser. Vi bör mäta resultatet innan vi överväger en större arkitekturförändring.
+
+## Prestandamätningar – lokala mätvärden
+
+Den 2026-10-30 genomfördes lokala mätningar efter att fem olika sidvyer hade öppnats. Mätverktyget registrerade mjuk navigering och visade värden för Core Web Vitals.
+
+### Resultat
+
+| Mätning |    LCP | LCP-element | CLS |        INP | Typ av interaktion              |
+| ------- | -----: | ----------- | --: | ---------: | ------------------------------- |
+| 1       | 0,25 s | `img.hero`  |   0 |      32 ms | Pointer                         |
+| 2       | 0,22 s | `caption`   |   0 |      32 ms | Pointer                         |
+| 3       | 0,05 s | `p.intro`   |   0 |      48 ms | Pointer                         |
+| 4       | 0,06 s | `h1`        |   0 |      32 ms | Keyboard                        |
+| 5       | 0,27 s | `h1`        |   0 | Ej uppmätt | Ingen interaktion registrerades |
+
+### Sammanfattning av resultaten
+
+- **LCP:** Mellan 0,05 och 0,27 sekunder. Medelvärdet för de fem mätningarna var cirka **0,17 sekunder**.
+- **CLS:** 0 i samtliga fem mätningar. Ingen layoutförskjutning registrerades.
+- **INP:** Mellan 32 och 48 millisekunder i de fyra mätningar där en interaktion registrerades. Medelvärdet var **36 millisekunder**.
+- **INP i mätning 5:** Inget värde registrerades eftersom ingen interaktion genomfördes. Det ska därför inte tolkas som ett INP-värde på 0 ms.
+
+Samtliga uppmätta värden ligger inom de rekommenderade gränserna för goda Core Web Vitals:
+
+| Mätvärde | Gräns för bra resultat | Uppmätt resultat |
+| -------- | ---------------------: | ---------------- |
+| LCP      |            Högst 2,5 s | 0,05–0,27 s      |
+| CLS      |              Högst 0,1 | 0                |
+| INP      |           Högst 200 ms | 32–48 ms         |
+
+### Tolkning
+
+Mätningarna visar att den befintliga SPA-lösningen har mycket god prestanda i den lokala testmiljön. Sidorna visas snabbt vid mjuk navigering, ingen layoutförskjutning registrerades och de uppmätta interaktionerna svarade snabbt.
+
+LCP-elementen varierade mellan exempelvis `img.hero`, `caption`, `p.intro` och `h1`. Det visar vilka element som var de största innehållselementen i respektive mätning.
+
+Det är viktigt att skilja mellan lokala mätvärden och fältmätvärden. De lokala resultaten beskriver prestandan i den testmiljö och under de förhållanden där mätningarna genomfördes. De garanterar inte samma resultat för alla användare, enheter eller nätverksförhållanden. Fältdata behöver därför följas upp separat när sådan data finns tillgänglig.
+
+## Konsekvenser
+
+Vi behåller Vue och Vite som SPA. Det innebär att vi kan fortsätta använda nuvarande hostinglösning med statiska filer och undvika att införa en separat renderingsserver.
+
+De lokala mätningarna ger stöd för att den nuvarande lösningen har god prestanda. Det finns därför inget som i dessa mätningar motiverar ett byte till SSR eller SSG. Vi bör fortsätta följa upp prestandan och optimera den befintliga lösningen vid behov.
+
+Beslutet kan omprövas om Kraftly Mina sidor utvecklas från en kundportal till en mer publik webbplats med informations- eller marknadsföringssidor. I så fall behöver vi utvärdera behovet av SEO, indexerbarhet och innehåll som ska kunna läsas av sökmotorernas crawlers.
+
+Innan vi byter renderingsteknik ska vi undersöka om den önskade prestandan kan uppnås genom optimering av den befintliga SPA-lösningen.
+
+---
+
+---
+
 ## Status
 
 Proposed — to be reviewed and approved by the team.

@@ -52,16 +52,19 @@
 
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { login } from "../services/api";
 import KButton from "../components/KButton.vue";
 import KField from "../components/KField.vue";
+import { getSafeRedirect } from "../utils/redirect";
 
 const email = ref("");
 const password = ref("");
 const error = ref("");
 const loading = ref(false);
+
 const router = useRouter();
+const route = useRoute();
 
 const handleLogin = async () => {
   if (loading.value) return;
@@ -71,7 +74,11 @@ const handleLogin = async () => {
 
   try {
     await login(email.value.trim(), password.value);
-    await router.push("/");
+
+    // Hämta och kontrollera sidan som användaren försökte öppna.
+    const redirect = getSafeRedirect(route.query.redirect);
+
+    await router.replace(redirect);
   } catch (e) {
     console.error("Login failed:", e);
 

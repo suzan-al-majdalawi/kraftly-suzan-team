@@ -77,3 +77,55 @@ Den slutliga bedömningen görs av en mänsklig granskare. AI-granskningen får 
 - [x] Kontrollera att workflowen publicerar kommentarer på pull requests.
 
 **Nuvarande status:** AI-granskningen har testats på tre pull requests, men är ännu inte fullt verifierad. PR #30 och PR #31 innehåller användbara förslag som behöver kontrolleras mot koden. Ett nytt test med en giltig API-nyckel behövs för att verifiera hela flödet.
+
+## PR #32 – Fel och lösningar
+
+Vid arbetet med PR #32 genomfördes en granskning av autentiseringsflödet och hanteringen av användardata. Granskningen visade flera problem som kunde påverka säkerheten och stabiliteten i applikationen.
+
+### 1. Problem med normalisering av användardata
+
+**Fel:**  
+API:et kunde returnera användardata i olika format. Om svaret innehöll ett objekt med egenskapen `user` kunde informationen hamna på fel nivå i Pinia-storen. Om svaret inte var ett giltigt objekt kunde data dessutom hanteras felaktigt.
+
+**Lösning:**  
+En funktion för normalisering av API-svar infördes i `user.js`. Den kontrollerar att svaret har rätt format och hanterar både direkta användarobjekt och svar som innehåller ett `user`-objekt. Detta gör hanteringen av användardata mer förutsägbar.
+
+### 2. Problem med samtidiga Refresh-anrop
+
+**Fel:**  
+Flera samtidiga anrop till `refresh()` kunde försöka återställa sessionen samtidigt. Eftersom refresh-token roteras på servern kunde detta orsaka konflikter och misslyckad autentisering.
+
+**Lösning:**  
+En gemensam Promise infördes i `api.js` för att förhindra att flera Refresh-anrop körs samtidigt. På så sätt kan samtidiga anrop använda samma pågående återställning i stället för att starta nya anrop.
+
+### 3. Risk för att en gammal Refresh återställer sessionen efter utloggning
+
+**Fel:**  
+En Refresh-begäran som startats före utloggningen kunde slutföras efter att användaren loggat ut. Det fanns då en risk att ett gammalt svar sparade en access-token igen och återställde en session som skulle vara avslutad.
+
+**Lösning:**  
+En generationskontroll infördes i API-lagret. När utloggningen startar ändras generationen. En äldre Refresh-operation får då inte spara sin access-token om den tillhör en tidigare generation. Utloggningen väntar även in en pågående Refresh-operation innan logout-anropet skickas.
+
+### 4. Skydd mot föråldrad sessionsåterställning i auth-storen
+
+**Fel:**  
+Även om API-lagret skyddades behövde auth-storen kunna hantera situationer där en sessionsåterställning pågår samtidigt som användaren loggar in eller ut. Annars kunde ett äldre resultat påverka aktuell autentiseringsstatus.
+
+**Lösning:**  
+`sessionVersion` behölls i `auth.js`. Den används för att kontrollera att resultatet från en återställning fortfarande tillhör den aktuella sessionen innan användarens tillstånd uppdateras.
+
+### 5. Test av samtidiga sessionsåterställningar
+
+**Fel:**  
+Det saknades ett tydligt test som säkerställde att flera samtidiga anrop till `restore()` inte startade flera separata återställningar.
+
+**Lösning:**  
+Ett test lades till för att kontrollera att samtidiga anrop till `restore()` delar på samma pågående Promise och att sessionen bara återställs en gång.
+
+## Resultat
+
+Ändringarna i PR #32 syftar till att göra autentiseringsflödet mer robust och minska risken för problem vid samtidiga anrop, utloggning och återställning av sessionen.
+
+De förbättrar även valideringen och hanteringen av användardata från API:et. Lösningarna kompletterar varandra genom att skydda både API-lagret och auth-storen.
+
+Ändringarna behöver verifieras med projektets tester och byggprocess innan de kan betraktas som helt färdigtestade.
