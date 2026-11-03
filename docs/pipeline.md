@@ -1,170 +1,191 @@
 # Pipeline – Kraftly Mina sidor
 
-Det här dokumentet beskriver projektets CI/CD-pipeline, från kodändringar och automatiserade kvalitetskontroller till publicering av Docker-avbildningar och deployment till staging och produktion.
+## Syfte
 
-Dokumentationen omfattar även merge-regler, testning, prestandamätningar, felsökning och säkerhet. Målet är att göra det tydligt hur pipeline-flödet fungerar, vilka kontroller som utförs och hur fel ska hanteras.
+Det här dokumentet beskriver projektets CI/CD-flöde, från kodändringar och automatiserade kvalitetskontroller till publicering av Docker-avbildningar och driftsättning till staging och produktion.
+
+Dokumentationen beskriver även workflow-jobb, merge-regler, testning, prestandamätningar, felsökning och säkerhet.
+
+Målet är att göra det tydligt vilka kontroller som utförs, hur applikationen byggs och hur rätt version verifieras i respektive miljö.
 
 ## 1. Översikt över pipeline-flödet
 
-Diagrammet visar hur kodändringar kontrolleras, byggs och deployas/driftsätts från GitHub till staging och produktion.
+Projektet använder ett gemensamt GitHub Actions-workflow:
+
+- `cd.yml` hanterar både CI (Continuous Integration) och CD (Continuous Delivery/Deployment).
+- Workflowen innehåller automatiserade tester, tillgänglighetskontroller, produktionsbygge, Storybook-bygge, Docker-publicering och deployment.
+- Vid pull requests körs verifieringsstegen, men Docker-avbildningen publiceras inte till GHCR.
+- Vid push till `main` kan den verifierade Docker-avbildningen publiceras och driftsättas till staging och därefter produktion.
+
+Det innebär att projektets kvalitetskontroller och deployment hanteras i samma workflow i stället för i två separata workflow-filer.
+
+### 1.1 CI/CD – från kodändring till produktion
 
 ```mermaid
 flowchart TD
-    PR["Pull request"]
-    MAIN["Merge och push till main"]
-
-    subgraph CI["CI – kvalitetskontroller"]
-        V["Verify: test och build<br/>test:a11y, test:run, build"]
-        S["Storybook build<br/>build-storybook"]
-        ART["Artefakt: storybook-static"]
-    end
-
-    subgraph CD["CD – publicering och deployment"]
-        IMG["Bygg Docker-image<br/>linux/amd64"]
-        GHCR[("GHCR<br/>commit SHA och main")]
-        ST["Driftsätt till staging"]
-        STV["Verifiera version.txt<br/>mot förväntad commit SHA"]
-        APPROVE{"Staging verifierad<br/>och godkänd?"}
-        PROD["Driftsätt till produktion"]
-        PV["Verifiera version.txt<br/>mot commit SHA"]
-        FLAG["Kontrollera<br/>FEATURE_NORWAY = false"]
-    end
-
-    STOP["Avsluta utan publicering<br/>eller deployment"]
-
-    PR --> V
-    PR --> S
-    V --> IMG
-    S --> ART
-    S --> IMG
-
-    MAIN --> IMG
-    IMG --> GHCR
-    GHCR --> ST
-    ST --> STV
-    STV --> APPROVE
-
-    APPROVE -->|"Ja"| PROD
-    APPROVE -->|"Nej"| STOP
-
-    PROD --> PV
-    PV --> FLAG
-
-    IMG -.->|"Pull request: ingen publicering till GHCR"| STOP
+    A["Pull request eller push till main"] --> B["cd.yml startar"]
+    B --> C["Installera beroenden"]
+    C --> D["Kör applikationstester"]
+    D --> E["Kör tillgänglighetstester"]
+    E --> F["Bygg applikationen"]
+    F --> G["Bygg Storybook"]
+    G --> H["Bygg Docker-image"]
+    H --> I{"Push till main?"}
+    I -- "Nej, pull request" --> J["Verifiering klar – ingen publicering"]
+    I -- "Ja" --> K["Tagga image med commit-SHA"]
+    K --> L["Publicera image till GHCR"]
+    L --> M["Deploy till staging"]
+    M --> N["Verifiera version.txt"]
+    N --> O["Deploy samma image till produktion"]
+    O --> P["Verifiera produktion"]
+    P --> Q["Kontrollera FEATURE_NORWAY"]
 ```
 
-Diagrammet beskriver det avsedda flödet enligt den dokumenterade konfigurationen. Kontrollera alltid `.github/workflows/ci.yml` för att säkerställa att beroenden, villkor och jobb överensstämmer med diagrammet.
+### 1.2 Deploymentflöde
+
+```mermaid
+flowchart TD
+    A["Push till main"] --> B["Verifiering i cd.yml"]
+    B --> C["Bygg Storybook"]
+    C --> D["Bygg Docker-image en gång"]
+    D --> E["Tagga med commit-SHA"]
+    E --> F["Publicera till GHCR"]
+    F --> G["Deploy till staging"]
+    G --> H["Verifiera staging via version.txt"]
+    H --> I{"Staging godkänd?"}
+    I -- "Nej" --> J["Stoppa deployment"]
+    I -- "Ja" --> K["Deploy samma image till produktion"]
+    K --> L["Verifiera produktionens version"]
+    L --> M["Kontrollera FEATURE_NORWAY = false"]
+```
+
+Diagrammen visar huvudflödet i `cd.yml`. Det första beskriver både verifiering och deployment. Det andra fokuserar på publicering och driftsättning mellan miljöerna.
+
+Exakta triggers, villkor och beroenden ska alltid kontrolleras i `.github/workflows/cd.yml`.
 
 ## 2. CI – automatiserade kvalitetskontroller
 
-CI (Continuous Integration) används för att kontrollera kodändringar innan de går vidare till publicering och deployment.
+CI (Continuous Integration) används för att kontrollera kodändringar automatiskt.
 
-### 2.1 Verify
+### 2.1 Workflow: `cd.yml`
 
-Jobbet `verify` kör följande kontroller:
-
-- `npm run test:a11y` – tillgänglighetstester.
-- `npm run test:run` – applikationstester.
-- `npm run build` – bygger applikationen för produktion.
-
-Syftet är att upptäcka fel tidigt och säkerställa att applikationen kan testas och byggas.
-
-### 2.2 Storybook
-
-Jobbet `storybook` kör:
-
-```bash
-npm run build-storybook
-```
-
-Det genererar en statisk version av Storybook som sparas som artefakten `storybook-static`.
-
-Artefakten kan användas för att granska komponenter och deras dokumentation separat från den vanliga applikationen.
-
-### 2.3 Parallell körning och beroenden
-
-Jobben `verify` och `storybook` är separata och kan köras parallellt om workflow-konfigurationen inte anger andra beroenden.
-
-Publiceringsjobbet ska vänta tills de obligatoriska föregående jobben har lyckats.
-
-På pull requests körs kvalitetskontrollerna och Storybook byggs. Docker-imagen kan även byggas som en del av publiceringsjobbet, men ska inte publiceras till GHCR från en pull request.
-
-Vid push till `main` publiceras imagen och deploymenten kan fortsätta enligt pipeline-flödet.
-
-Kontrollera `needs`, `if` och eventuella andra villkor i workflow-filen för att verifiera det faktiska beroendeflödet.
-
-## 3. CD – publicering och deployment
-
-CD (Continuous Delivery/Deployment) hanterar publiceringen av Docker-imagen och deploymenten till de olika miljöerna.
-
-### 3.1 Bygg och publicera Docker-imagen
-
-Publiceringsjobbet bygger en Docker-avbildning för plattformen `linux/amd64`.
-
-Imagen publiceras till GitHub Container Registry (GHCR) med två taggar:
-
-- Commitens SHA, som identifierar en specifik kodversion.
-- `main`, som används för att referera till den senast publicerade versionen från den branchen.
-
-Commit-SHA används för att verifiera vilken version som faktiskt har driftsatts.
-
-Publiceringen sker vid push till `main`, enligt den dokumenterade workflow-konfigurationen. Pull requests ska inte publicera avbildningar till GHCR.
-
-### 3.2 deployment till staging
-
-Staging-jobbet körs efter att publiceringen har lyckats.
-
-Render konfigureras att använda Docker-imagen som motsvarar den aktuella commitens SHA.
-
-Efter deploymenten kontrollerar workflowen `version.txt` för att verifiera att rätt version körs.
-
-Enligt den dokumenterade konfigurationen görs verifieringen i upp till fem minuter. Om det rapporterade versionsvärdet inte motsvarar den förväntade SHA-markeras jobbet som misslyckat.
-
-### 3.3 Deployment till produktion
-
-Produktionsjobbet körs först efter att staging-jobbet har lyckats.
-
-Efter deploymenten jämförs värdet i `version.txt` med den förväntade commit-SHA:n.
-
-Om `PROD_URL` saknas hoppar den aktuella workflowen över SHA-verifieringen och visar en varning. Detta innebär att versionskontrollen inte kan betraktas som genomförd i det fallet.
-
-Slutligen kontrolleras att funktionen `FEATURE_NORWAY` är avstängd i produktion.
-
-### 3.4 Ordning och verifiering
-
-Deploymenten sker i följande ordning:
-
-1. Bygg Docker-imagen.
-2. Publicera imagen till GHCR.
-3. Driftsätt till staging.
-4. Verifiera den driftsatta versionen.
-5. Gå vidare till produktion först när staging-jobbet har lyckats.
-6. Verifiera produktionsversionen.
-7. Kontrollera att `FEATURE_NORWAY` är avstängd.
-
-En lyckad staging-verifiering är därmed en förutsättning för att produktionsjobbet ska starta, enligt det dokumenterade flödet.
-
-## 4. Merge-regler och krav på pull requests
-
-Workflowen körs vid:
+Det gemensamma workflowet körs vid:
 
 - `pull_request`
 - `push` till `main`
 
-I workflow-filen finns bland annat jobben `verify` och `storybook`. Publicerings- och deploymentsjobben följer sina respektive villkor.
+Verifieringsstegen omfattar:
 
-### 4.1 Required checks
+- `npm ci` – installerar beroenden.
+- `npm run test:a11y` – kör tillgänglighetstester.
+- `npm run test:run` – kör applikationstester.
+- `npm run build` – bygger applikationen för produktion.
 
-Att ett jobb finns i `.github/workflows/ci.yml` innebär inte automatiskt att jobbet är ett obligatoriskt krav för merge.
+En lyckad körning visar att dessa kontroller har passerat i den aktuella körningen.
 
-Kontrollera därför GitHub-repositoryts inställningar för branch protection eller rulesets för att fastställa:
+Vid pull requests körs verifieringen, men Docker-avbildningen publiceras inte till GHCR och ingen deployment till staging eller produktion genomförs.
 
-- Vilka jobb som måste lyckas innan merge.
+Vid push till `main` fortsätter workflowen till publicering och deployment när de föregående stegen har lyckats.
+
+### 2.2 Storybook
+
+Storybook byggs med:
+
+```powershell
+npm run build-storybook
+```
+
+Resultatet är en statisk Storybook-version som sparas som artefakten `storybook-static`.
+
+Artefakten kan användas för att granska komponenter och deras dokumentation separat från den vanliga applikationen.
+
+Projektet har även ett Storybook-jobb i `cd.yml`.
+
+## 3. CD – publicering och deployment
+
+CD (Continuous Delivery/Deployment) hanterar byggandet, publiceringen och driftsättningen av applikationen.
+
+### 3.1 Bygg Docker-avbildningen
+
+Docker-avbildningen byggs för plattformen `linux/amd64`.
+
+Avbildningen byggs en gång i publiceringsflödet och identifieras med commitens SHA.
+
+Detta gör det möjligt att koppla den driftsatta versionen till en specifik kodversion.
+
+### 3.2 Publicering till GHCR
+
+Docker-avbildningen publiceras till GitHub Container Registry (GHCR).
+
+Den får följande taggar:
+
+- Commitens SHA – identifierar en specifik version.
+- `main` – refererar till den senast publicerade versionen från `main`.
+
+Publicering till GHCR sker vid push till `main`, inte från pull requests.
+
+Pull requests kan bygga Docker-avbildningen för verifiering, men ska inte publicera den till registret.
+
+### 3.3 Deployment till staging
+
+Efter att publiceringen har lyckats kan staging-jobbet starta.
+
+Render driftsätter Docker-avbildningen som motsvarar den aktuella commitens SHA.
+
+Efter deploymenten kontrolleras:
+
+- Att staging svarar.
+- Att `/version.txt` innehåller den förväntade commit-SHA.
+
+Workflowen försöker verifiera versionen under en begränsad väntetid, upp till fem minuter enligt den dokumenterade konfigurationen.
+
+Om versionsvärdet inte motsvarar förväntad SHA misslyckas verifieringen.
+
+### 3.4 Deployment till produktion
+
+Produktionsjobbet är beroende av att staging-jobbet har lyckats.
+
+Produktionen driftsätts med samma Docker-avbildning och commit-SHA som användes i staging.
+
+Efter deploymenten försöker workflowen verifiera produktionsversionen genom `/version.txt`.
+
+Om `PROD_URL` saknas hoppas versionsverifieringen över och en varning visas. I det läget kan produktionsversionen inte betraktas som verifierad av workflowen.
+
+Slutligen kontrolleras att `FEATURE_NORWAY` är avstängd i produktion.
+
+### 3.5 Sammanfattning av deploymentordningen
+
+1. Starta `cd.yml` vid pull request eller push till `main`.
+2. Installera beroenden.
+3. Kör applikationstester och tillgänglighetstester.
+4. Bygg applikationen för produktion.
+5. Bygg Storybook.
+6. Bygg Docker-avbildningen.
+7. Vid pull request: avsluta efter verifieringen utan publicering eller deployment.
+8. Vid push till `main`: tagga avbildningen med commit-SHA.
+9. Publicera avbildningen till GHCR.
+10. Driftsätt samma SHA till staging.
+11. Verifiera `/version.txt` i staging.
+12. Driftsätt samma SHA till produktion efter godkänd staging.
+13. Verifiera produktionens `/version.txt` om `PROD_URL` är konfigurerad.
+14. Kontrollera att `FEATURE_NORWAY` är avstängd i produktion.
+
+Det är viktigt att skilja mellan att en deployment har startat och att den driftsatta versionen har verifierats.
+
+## 4. Merge-regler och pull requests
+
+Det gemensamma workflowet `cd.yml` körs vid pull requests och push till `main`.
+
+Att ett jobb finns i workflow-filen innebär inte automatiskt att det är ett obligatoriskt merge-krav.
+
+Kontrollera GitHub-repositoryts branch protection eller rulesets för att fastställa:
+
+- Vilka checks som måste lyckas före merge.
 - Om minst en godkänd granskning krävs.
 - Om branchen måste vara uppdaterad med målbranchen.
-- Om det finns andra regler som påverkar möjligheten att slå samman en pull request.
+- Om andra regler påverkar möjligheten att slå samman en pull request.
 
-Dokumentera endast de merge-regler som faktiskt är konfigurerade i repositoryt.
+Dokumentera endast de regler som faktiskt är aktiverade i repositoryt.
 
 ## 5. Hantering av röd main
 
@@ -172,38 +193,41 @@ När `main` har en misslyckad pipeline ska felet undersökas och hanteras enligt
 
 **Ansvarig:** Tech lead enligt teamets arbetsöverenskommelse.
 
-### Åtgärdsplan
+### 5.1 Åtgärdsplan
 
-1. Identifiera vilket jobb och vilket steg som misslyckades.
+1. Identifiera vilket jobb och steg i `cd.yml` som misslyckades.
 2. Läs felloggarna i GitHub Actions.
-3. Undersök grundorsaken och avgör om felet beror på kod, testdata, konfiguration eller miljö.
-4. Åtgärda felet och kör relevanta kontroller igen.
-5. Vid ett större fel kan en revert användas för att snabbt återställa en tidigare fungerande kodversion.
-6. Verifiera att den korrigerade versionen passerar relevanta kontroller.
+3. Undersök grundorsaken.
+4. Avgör om felet beror på kod, testdata, konfiguration eller miljö.
+5. Åtgärda felet och kör relevanta kontroller igen.
+6. Vid ett större fel kan en revert användas för att återställa en tidigare fungerande kodversion.
+7. Verifiera att den korrigerade versionen passerar relevanta kontroller.
 
 Kringgå inte projektets obligatoriska kontroller för att få en merge att gå igenom.
 
-Den tidigare dokumenterade tidsgränsen för hantering av röd main är 45 minuter. Behåll tidsgränsen endast om den fortfarande gäller enligt teamets aktuella arbetsöverenskommelse.
+Den tidigare dokumenterade tidsgränsen för hantering av röd main är 45 minuter. Behåll den endast om den fortfarande gäller enligt teamets aktuella arbetsöverenskommelse.
 
 ## 6. Byggtid och prestandamätningar
 
-I de dokumenterade körningarna observerades ungefär följande tider:
+I tidigare dokumenterade körningar observerades ungefär följande tider:
 
-| Jobb                       |  Observerad tid |
-| -------------------------- | --------------: |
-| Test och build             |     30 sekunder |
-| Storybook build            |     31 sekunder |
-| Docker-avbildning och GHCR |     38 sekunder |
+| Jobb                       | Observerad tid  |
+| -------------------------- | --------------- |
+| Test och build             | 30 sekunder     |
+| Storybook build            | 31 sekunder     |
+| Docker-avbildning och GHCR | 38 sekunder     |
 | Deployment till staging    | Ej dokumenterad |
 | Deployment till produktion | Ej dokumenterad |
 
-Tiderna är observerade resultat från specifika körningar och ska inte betraktas som garanterade byggtider.
+Tiderna är observerade resultat från specifika körningar. De ska inte betraktas som garanterade byggtider.
 
 ### 6.1 Hur tiderna ska tolkas
 
-Jobben `verify` och `storybook` kan köras parallellt. Därför ska deras tider inte adderas som om de alltid kördes efter varandra.
+Jobben för verifiering och Storybook kan köras parallellt om workflow-konfigurationen tillåter det.
 
-Publicering och deployment sker efter att föregående beroenden har lyckats. Den totala tiden påverkas därför även av:
+Därför ska deras tider inte adderas som om de alltid kördes efter varandra.
+
+Den totala tiden påverkas även av:
 
 - Docker-bygget.
 - Publiceringen till GHCR.
@@ -217,11 +241,13 @@ För en rättvis jämförelse bör mätningar göras under jämförbara förhål
 
 Workflowen använder `actions/setup-node` med `cache: npm` och installerar beroenden med `npm ci`.
 
-Npm-cachen kan minska tiden för beroendehantering genom att återanvända tidigare nedladdade paket. Cachen garanterar dock inte att varje jobb eller hela pipelinen blir snabbare.
+Npm-cachen kan minska tiden för beroendehantering genom att återanvända tidigare nedladdade paket.
+
+Cachen garanterar däremot inte att varje jobb eller hela pipelinen blir snabbare.
 
 Jämförelser före och efter en cacheändring ska baseras på dokumenterade mätningar. Om körningarna skiljer sig åt i exempelvis cache-status, runner eller belastning ska resultaten tolkas med försiktighet.
 
-Skärmdumpar från GitHub Actions används som kompletterande underlag för körningar med och utan cache. De finns dokumenterade i avsnitt 10.1.
+Skärmdumpar från GitHub Actions används som kompletterande underlag för körningar med och utan cache. De anges i avsnitt 10.1.
 
 | Körning    | Dokumenterat underlag                                       |
 | ---------- | ----------------------------------------------------------- |
@@ -234,131 +260,67 @@ Bilderna visar observerade pipeline-körningar. En faktisk tidsvinst ska endast 
 
 Följande kommandon används för att kontrollera applikationen lokalt:
 
-| Kommando                  | Syfte                                            |
-| ------------------------- | ------------------------------------------------ |
-| `npm run test:a11y`       | Tillgänglighetstester                            |
-| `npm run test:run`        | Applikationstester                               |
-| `npm run build`           | Produktionsbygge                                 |
-| `npm run build-storybook` | Bygge av Storybook                               |
-| `npx playwright test`     | Playwright-tester, om Playwright är konfigurerat |
+| Kommando                  | Syfte                 |
+| ------------------------- | --------------------- |
+| `npm run test:a11y`       | Tillgänglighetstester |
+| `npm run test:run`        | Applikationstester    |
+| `npm run build`           | Produktionsbygge      |
+| `npm run build-storybook` | Bygge av Storybook    |
+| `npx playwright test`     | Playwright-tester     |
 
 Kör relevanta tester innan du skickar in en pull request.
 
-Playwright kan köras separat lokalt eller genom ett särskilt workflow. Dokumentera det som en separat CI-kontroll endast om den faktiskt finns i konfigurationen.
+Playwright kan köras separat lokalt eller genom ett särskilt workflow. Dokumentera det som en separat CI-kontroll endast om det faktiskt finns i workflow-konfigurationen.
 
 Resultat ska rapporteras som godkända först efter att testerna har körts och passerat.
 
-## 8. Felsökning: Playwright efter ändrade kunduppgifter
+### 7.1 Dokumenterade Playwright-tester
 
-### 8.1 Bakgrund
+Playwright används för att testa centrala användarflöden.
 
-Efter att kunduppgifterna ändrades från Anna Andersson till Suzan misslyckades två Playwright-tester vid lokal körning med:
+De dokumenterade testerna omfattar:
 
-```bash
-npx playwright test
-```
+- Inloggning och visning av översikten.
+- Att felaktigt lösenord nekas.
+- Att ingen access token sparas i `localStorage` efter misslyckad inloggning.
+- Att en oautentiserad användare skickas till `/login`.
+- Att användaren efter inloggning kan återgå till `/fakturor` och se fakturan `F-2026-06`.
 
-Följande tester påverkades:
+En tidigare rapporterad körning visade fem godkända Playwright-tester. Detta resultat ska betraktas som ett dokumenterat testresultat från den körningen, inte som en garanti för framtida körningar.
 
-- `e2e/nav.spec.js` – `navigation between different pages work`
-- `e2e/smoke.spec.js` – `kunden kan logga in och ser sin översikt`
+## 8. Felsökning av testdata
 
-Båda testerna loggar in med e-postadressen `anna.andersson@example.com` och lösenordet som anges i testkoden.
+Automatiserade tester kan påverkas när testkonton eller kunduppgifter ändras.
 
-Efter inloggningen förväntar sig testerna rubriken `Hej Anna!`, men applikationen visar `Hej Suzan!`.
+Ett tidigare Playwright-fel uppstod när ett test förväntade sig rubriken `Hej Anna!`, medan applikationen visade `Hej Suzan!`.
 
-### 8.2 Felmeddelande
+Felet visade att testets förväntade text inte stämde med applikationens faktiska resultat. Det bevisade inte i sig att inloggningen hade misslyckats.
 
-Playwright rapporterade följande skillnad:
+Vid liknande fel ska teamet:
 
-```text
-Error: expect(locator).toHaveText(expected) failed
+1. Kontrollera vilken testanvändare som används.
+2. Kontrollera testkontots aktuella uppgifter.
+3. Jämföra testets förväntningar med applikationens faktiska resultat.
+4. Ändra testdata eller förväntningar först när det är klarlagt vilket resultat som är korrekt.
+5. Köra det berörda testet och därefter hela testsviten.
 
-Expected: "Hej Anna!"
-Received: "Hej Suzan!"
-```
-
-Felet visar att Playwright hittar rubriken, men att dess faktiska text inte motsvarar det förväntade värdet.
-
-Det innebär inte automatiskt att inloggningen har misslyckats. Felet uppstår vid kontrollen av rubrikens innehåll.
-
-### 8.3 Orsak
-
-Tester­na innehåller fortfarande den gamla förväntningen:
-
-```js
-await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hej Anna!");
-```
-
-Samtidigt visar applikationen `Hej Suzan!`.
-
-En möjlig förklaring är att testkontots namn eller testdata har ändrats, eller att e-postadressen nu är kopplad till en annan testprofil.
-
-Den faktiska kopplingen mellan e-postadressen och testkontot behöver kontrolleras innan testet ändras.
-
-### 8.4 Åtgärd
-
-Om Suzan är den avsedda testkunden ska förväntningen uppdateras i båda testfilerna:
-
-```js
-await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hej Suzan!");
-```
-
-Om testerna i stället ska verifiera Anna Anderssons konto ska testdata eller kontokopplingen korrigeras.
-
-Ändra inte enbart den förväntade texten för att få testerna att passera. Testerna ska verifiera rätt kund och rätt beteende.
-
-För att göra testerna mer robusta bör varje test använda en tydligt definierad testanvändare med testdata som stämmer överens med de förväntningar som används.
-
-### 8.5 Verifiering efter ändringen
-
-Kör först de två berörda testerna separat:
-
-```bash
-npx playwright test e2e/nav.spec.js
-npx playwright test e2e/smoke.spec.js
-```
-
-Kör därefter hela Playwright-testsviten:
-
-```bash
-npx playwright test
-```
-
-Kontrollera att:
-
-- Inloggningen fungerar med avsedd testanvändare.
-- Rätt välkomsttext visas.
-- Navigeringen till Fakturor fungerar.
-- Navigeringen till Flyttanmälan fungerar.
-- Navigeringen till Mina uppgifter eller profilsidan fungerar.
-- Testerna verifierar det förväntade resultatet, inte bara att sidorna kan öppnas.
-
-Om ett test fortfarande misslyckas ska felmeddelandet, testdatan och sidans faktiska innehåll undersökas innan ytterligare ändringar görs.
-
-### 8.6 Resultat och lärdom
-
-Det dokumenterade felet visar att testernas förväntningar inte längre stämmer med namnet som visas i applikationen.
-
-När kunduppgifter eller testdata ändras behöver berörda automatiserade tester ses över. Målet är att testerna ska verifiera rätt funktionalitet, inte enbart att de ska passera.
-
-En lyckad testkörning ska dokumenteras som verifierad först när testerna faktiskt har körts och passerat.
+Ändra inte enbart förväntad text för att få ett test att passera. Testet ska verifiera rätt användare och rätt beteende.
 
 ## 9. Säkerhet och felhantering
 
-Följande säkerhets- och verifieringsprinciper gäller för den dokumenterade pipelinen:
+Följande principer gäller för den dokumenterade pipelinen:
 
-- Workflowen använder `contents: read` som standardbehörighet.
+- Workflowen använder begränsade behörigheter, bland annat `contents: read` som standard.
 - Publiceringsjobbet får `packages: write` för att kunna publicera Docker-avbildningar till GHCR.
 - Docker-avbildningar publiceras inte från pull requests.
-- Deploymentsjobben körs endast vid push till `main`, enligt den dokumenterade konfigurationen.
+- Deploymentjobben körs endast vid push till `main`, enligt den dokumenterade konfigurationen.
 - Staging måste lyckas innan produktion startar.
 - Commit-SHA används för att identifiera och verifiera den driftsatta versionen.
 - Deploy Hooks lagras som GitHub Actions secrets.
 - Saknad konfiguration eller felaktig versionsinformation kan leda till att verifieringen misslyckas.
-- Playwright-fel ska undersökas mot aktuell testdata och applikationens faktiska resultat innan testerna ändras.
+- Testfel ska undersökas mot aktuell testdata och applikationens faktiska resultat innan testerna ändras.
 
-### Rollback och återställning
+### 9.1 Rollback och återställning
 
 En misslyckad pipeline innebär inte i sig att en automatisk rollback har genomförts.
 
@@ -374,21 +336,21 @@ Behåll endast referenser till bilder som faktiskt finns i repositoryt.
 
 ### 10.1 Pipeline och tester
 
-| Beskrivning              | Fil                                      |
-| ------------------------ | ---------------------------------------- |
-| Lokal Playwright-körning | `img/local-test-playwright-10.png`       |
-| Verify utan cache        | `img/verify-utan-cache-3.png`            |
-| Build utan cache         | `img/build_utan-cache-4.png`             |
-| Playwright utan cache    | `img/all-checks-passed-utan-cache-2.png` |
-| Verify med cache         | `img/verify-med-cache-7.png`             |
-| Build med cache          | `img/build_med-cache-8.png`              |
-| Playwright med cache     | `img/all-checks-passed-med-cache-6.png`  |
+| Beskrivning                | Fil                                      |
+| -------------------------- | ---------------------------------------- |
+| Lokal Playwright-körning   | `img/local-test-playwright-10.png`       |
+| Verify utan cache          | `img/verify-utan-cache-3.png`            |
+| Build utan cache           | `img/build_utan-cache-4.png`             |
+| Alla kontroller utan cache | `img/all-checks-passed-utan-cache-2.png` |
+| Verify med cache           | `img/verify-med-cache-7.png`             |
+| Build med cache            | `img/build_med-cache-8.png`              |
+| Alla kontroller med cache  | `img/all-checks-passed-med-cache-6.png`  |
 
 Dessa bilder kan användas för att jämföra körningar med och utan npm-cache. Dra inte slutsatser om prestandaförbättringar utan att resultaten är jämförbara.
 
 ### 10.2 Playwright – ändrade kunduppgifter
 
-Följande filer anges som dokumentation av felet där testerna förväntade sig Anna Andersson, medan applikationen visade Suzan:
+Följande filer anges som dokumentation av det tidigare felet där testerna förväntade sig Anna Andersson, medan applikationen visade Suzan:
 
 - `img/not-error-context-spara-anna-inte-suzan.png`
 - `img/error-context-spara-suzan-inte-anna.png`
@@ -406,15 +368,12 @@ Använd bilderna som stöd för dokumentationen, men verifiera även de aktuella
 
 ### 10.4 Flödesdiagram
 
-Det uppdaterade CI/CD-flödesdiagrammet anges som:
+Pipeline-flödet dokumenteras med Mermaid direkt i avsnitt 1. Diagrammen är en del av Markdown-dokumentet och versionshanteras tillsammans med övrig dokumentation.
 
-`img/CI_CD_Workflow.png`
+De tidigare separata diagramfilerna används inte längre:
 
-Den tidigare draw.io-bilden kan också behållas om den fortfarande överensstämmer med workflowen:
-
-`img/Flowchart-diagram-ci.drawio.png`
-
-Kontrollera att bilderna finns i repositoryt och att filnamnen stämmer exakt med sökvägarna i dokumentationen.
+- `img/CI_CD_Workflow.png`
+- `img/Flowchart-diagram-ci.drawio.png`
 
 ## 11. Underhåll av dokumentationen
 
@@ -430,6 +389,6 @@ Uppdatera denna fil när pipeline-konfigurationen förändras, till exempel när
 
 Dokumentera relevanta testfel, verifierade orsaker och åtgärder när ändringar i testdata eller kunduppgifter påverkar automatiserade tester.
 
-Dokumentationen ska alltid spegla den faktiska konfigurationen i `.github/workflows/ci.yml` och resultaten från verifierade körningar.
+Dokumentationen ska alltid spegla den faktiska konfigurationen i `.github/workflows/cd.yml`.
 
 Skilj mellan planerade kontroller, observerade resultat och funktioner som faktiskt är implementerade. På så sätt förblir dokumentationen tillförlitlig och användbar för hela teamet.
