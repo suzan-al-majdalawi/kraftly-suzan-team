@@ -14,6 +14,8 @@ const jsonResponse = (status, body) =>
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn());
+  localStorage.clear();
+  sessionStorage.clear();
   setAccessToken(null);
 });
 
@@ -22,7 +24,7 @@ afterEach(() => {
 });
 
 describe("login", () => {
-  it("stores access token in memory, not localStorage", async () => {
+  it("stores access token in memory, not browser storage", async () => {
     fetch.mockResolvedValueOnce(
       jsonResponse(200, {
         accessToken: TEST_TOKEN,
@@ -35,7 +37,8 @@ describe("login", () => {
 
     expect(data.name).toBe("Anna Andersson");
     expect(getAccessToken()).toBe(TEST_TOKEN);
-    expect(localStorage.getItem("kraftly_token")).toBeNull();
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
   });
 });
 
@@ -117,6 +120,26 @@ describe("refresh", () => {
     expect(firstResult.accessToken).toBe(NEW_TOKEN);
     expect(secondResult.accessToken).toBe(NEW_TOKEN);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows retry after a network error", async () => {
+    fetch.mockRejectedValueOnce(new Error("Network unavailable"));
+
+    fetch.mockResolvedValueOnce(
+      jsonResponse(200, {
+        accessToken: NEW_TOKEN,
+        expiresIn: 600,
+        name: "Anna",
+      }),
+    );
+
+    await expect(refresh()).rejects.toThrow("Network unavailable");
+
+    const data = await refresh();
+
+    expect(data.accessToken).toBe(NEW_TOKEN);
+    expect(getAccessToken()).toBe(NEW_TOKEN);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 
