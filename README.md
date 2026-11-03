@@ -33,19 +33,14 @@ Projektet innehåller bland annat:
 
 Följande bilder visar applikationens huvudsakliga vyer.
 
-### Inloggning, Dashboard och Fakturor
+### Inloggning, Dashboard, Fakturor, Flyttanmälan och Profil
 
 <p align="center">
-  <img src="docs/img/sidor/login.png" alt="Inloggningssidan" width="30%" />
-  <img src="docs/img/sidor/dashboard.png" alt="Kundens dashboard" width="30%" />
-  <img src="docs/img/sidor/fakturor.png" alt="Fakturavyn" width="30%" />
-</p>
-
-### Flyttanmälan och Profil
-
-<p align="center">
-  <img src="docs/img/sidor/flytt.png" alt="Flyttformuläret" width="45%" />
-  <img src="docs/img/sidor/profil.png" alt="Profilsidan" width="45%" />
+  <img src="docs/img/sidor/login.png" alt="Inloggningssidan" width="20%" />
+  <img src="docs/img/sidor/dashboard.png" alt="Kundens dashboard" width="20%" />
+  <img src="docs/img/sidor/fakturor.png" alt="Fakturavyn" width="20%" />
+  <img src="docs/img/sidor/flytt.png" alt="Flyttformuläret" width="20%" />
+  <img src="docs/img/sidor/profil.png" alt="Profilsidan" width="20%" />
 </p>
 
 | Sida         | Route       | Skärmbild                      |
