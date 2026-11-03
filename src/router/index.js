@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { getSafeRedirect } from "../utils/redirect";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -51,17 +52,8 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guestOnly && authenticated) {
-    const redirect = to.query.redirect;
-
-    if (
-      typeof redirect === "string" &&
-      redirect.startsWith("/") &&
-      !redirect.startsWith("//")
-    ) {
-      return redirect;
-    }
-
-    return "/";
+    const redirect = getSafeRedirect(to.query.redirect);
+    return redirect;
   }
 
   return true;
