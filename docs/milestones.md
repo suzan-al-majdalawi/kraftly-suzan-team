@@ -308,9 +308,9 @@ Målet är att en ny kollega eller ett annat team ska kunna ta över repot utan 
 - [x] Generalrepetition är genomförd måndag 2/11 eller tisdag 3/11.
 - [x] Generalrepetitionen är loggad i `docs/log.md` med datum, deltagare, längd, ändringar i körschemat och om reserven provades.
 - [x] Partnerteamets issue är stängd med ett svar per punkt: [Issue #13](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/issues/13).
-- [ ] Alla ändringar är mergade till `main` via PR.
-- [ ] Pipelinen på `main` är grön.
+- [x] Alla ändringar är mergade till `main` via PR.
+- [x] Pipelinen på `main` är grön.
 - [x] README-länkarna är kontrollerade så att alla filer finns.
-- [ ] Taggen `M10` är skapad på `main`.
+- [x] Taggen `M10` är skapad på `main`.
 
 ### Bevis som ska finnas

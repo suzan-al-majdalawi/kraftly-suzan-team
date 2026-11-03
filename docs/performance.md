@@ -14,11 +14,11 @@
 
 ## Before and after
 
-| Optimization            | Before | After | PR      |
-| ----------------------- | ------ | ----- | ------- |
-| Hero image optimization | TODO   | TODO  | PR link |
-| Lazy-loaded routes      | TODO   | TODO  | PR link |
-| Third optimization      | TODO   | TODO  | PR link |
+| Optimization            | Before                     | After                      | PR                                                                 |
+| ----------------------- | -------------------------- | -------------------------- | ------------------------------------------------------------------ |
+| Hero image optimization | 8.46s prod - 8.66s staging | 0.35s prod - 0.71s staging | [https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/21] |
+| Lazy-loaded routes      | TODO                       | TODO                       | säknas plats                                                       |
+| Third optimization      | TODO                       | TODO                       | säknas plats                                                       |
 
 ## Budget
 

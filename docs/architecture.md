@@ -20,7 +20,7 @@ Diagrammet visar systemets huvudsakliga komponenter och kommunikationen mellan w
 ```mermaid
 flowchart LR
     subgraph Browser["Kundens webbläsare"]
-        SPA["Vue 3 SPA<br/>Pinia · vue-router<br/>Access token i minnet"]
+        SPA["Vue 3 SPA<br/>Pinia · Vue Router<br/>Access token i minnet"]
     end
 
     subgraph Render["Render – separata miljöer"]
@@ -48,7 +48,6 @@ Diagrammet visar hur CD-workflowen verifierar projektet, bygger Docker-imagen, p
 flowchart TD
     subgraph GitHub["GitHub Actions och GHCR"]
         CI["ci.yml<br/>Tester · tillgänglighet · build"]
-
         VERIFY["cd.yml – verify<br/>Tester · tillgänglighet · build"]
         STORYBOOK["Bygg Storybook"]
         BUILD["Bygg Docker-image<br/>Tagg: commit-SHA"]
@@ -77,7 +76,7 @@ flowchart TD
     GHCR -->|"Samma image :SHA"| SERVICE_PROD
 ```
 
-`ci.yml` och `cd.yml` är separata workflows. `cd.yml` innehåller egna verifieringssteg innan deployment. Diagrammet visar därför deras huvudsakliga ansvarsområden utan att påstå att `ci.yml` automatiskt startar `cd.yml`.
+`ci.yml` och `cd.yml` är separata workflows. `cd.yml` innehåller egna verifieringssteg innan deployment. Diagrammet visar deras huvudsakliga ansvarsområden utan att påstå att `ci.yml` automatiskt startar `cd.yml`.
 
 ## 3. Komponenter
 
@@ -96,15 +95,47 @@ Frontendens API-anrop går via Nginx i stället för direkt till det externa API
 
 ### Nginx
 
-Nginx körs i frontendens Docker-container och ansvarar för att:
+Nginx används både för att servera frontendens byggda filer och som reverse proxy för API-kommunikation.
 
-- Servera byggda frontendfiler från `dist/`.
+Nginx ansvarar för att:
+
+- Lyssna på porten som anges av miljövariabeln `PORT`.
+- Servera frontendens byggda filer från `/usr/share/nginx/html`.
+- Hantera Vue SPA-routing med `try_files`, så att klientbaserade rutter fungerar vid direkt navigering och omladdning.
 - Servera runtime-konfigurationen `config.js`.
-- Hantera SPA-fallback med `try_files`.
-- Vidarebefordra API-anrop till det externa API:t med `proxy_pass`.
-- Vidarebefordra `X-API-Key` till API:t.
-- Tillämpa CSP och övriga säkerhetsheaders.
-- Hantera cacheinställningar för statiska filer och runtime-filer.
+- Vidarebefordra anrop under `/api/` till det externa API:t med `proxy_pass`.
+- Lägga till API-nyckeln i headern `X-Api-Key`.
+- Aktivera SNI för HTTPS-baserad API-kommunikation.
+- Använda en lästimeout på 90 sekunder för API-anrop.
+
+#### Cachehantering
+
+Nginx använder olika cacheinställningar beroende på filtyp:
+
+| Filtyp         | Cacheinställning                      | Syfte                                                                                    |
+| -------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `/assets/`     | `public, max-age=31536000, immutable` | Hashade filer kan cachas i ett år.                                                       |
+| `/index.html`  | `no-cache`                            | Säkerställer att webbläsaren kontrollerar aktuell version innan en cachad kopia används. |
+| `/config.js`   | `no-cache`                            | Säkerställer att runtime-inställningar och feature flags kan uppdateras.                 |
+| `/version.txt` | `no-cache`                            | Säkerställer att versionskontrollen inte använder ett gammalt cachelagrat värde.         |
+
+`no-cache` innebär att webbläsaren får lagra filen men måste kontrollera med servern innan den använder en cachad kopia.
+
+#### Säkerhetsheaders
+
+Alla definierade locations inkluderar `/etc/nginx/security-headers.conf`.
+
+Filen innehåller projektets säkerhetsheaders, bland annat Content-Security-Policy (CSP), HSTS, X-Frame-Options, X-Content-Type-Options och Referrer-Policy.
+
+### Runtime-konfiguration
+
+Vid containerstart genereras `config.js` utifrån miljövariablerna `APP_ENV` och `FEATURE_NORWAY`.
+
+Det gör det möjligt att använda samma Docker-image i olika miljöer utan att bygga om imagen.
+
+`FEATURE_NORWAY` är en publik feature flag. Om variabeln saknas eller inte har värdet `true` är funktionen avstängd.
+
+API-nyckeln skickas av Nginx på serversidan och får inte exponeras i `config.js` eller andra publika frontendfiler.
 
 ### GitHub Actions och GHCR
 
@@ -131,7 +162,7 @@ Flödet omfattar:
 2. Bygger Storybook och sparar resultatet som artifact.
 3. Bygger Docker-imagen efter godkända kontroller.
 4. Taggar imagen med commitens SHA och `main`.
-5. Publicerar imagen till GHCR på main enligt workflowens villkor.
+5. Publicerar imagen till GHCR på `main` enligt workflowens villkor.
 6. Initierar deployment till staging via Render Deploy Hook.
 7. Verifierar staging genom att läsa `/version.txt`.
 8. Deployar samma SHA-taggade image till produktion efter godkänd staging.
@@ -158,7 +189,7 @@ I de driftsatta miljöerna går API-kommunikationen via Nginx, som fungerar som 
 
 ## 4. API-kommunikation och säkerhet
 
-Frontend skickar API-anrop via Nginx. Nginx vidarebefordrar anropen till Kraftlys externa API med `proxy_pass` och konfigurerar headern `X-API-Key`.
+Frontend skickar API-anrop via Nginx. Nginx vidarebefordrar anropen till Kraftlys externa API med `proxy_pass` och konfigurerar headern `X-Api-Key`.
 
 Autentiseringen använder två typer av tokens:
 
@@ -167,7 +198,7 @@ Autentiseringen använder två typer av tokens:
 
 API-nyckeln hanteras på serversidan och ska inte exponeras i frontendens publika filer eller `config.js`.
 
-Nginx-konfigurationen innehåller säkerhetsinställningar som Content Security Policy (CSP), övriga säkerhetsheaders och cacheinställningar.
+Nginx-konfigurationen innehåller säkerhetsinställningar som Content-Security-Policy (CSP), övriga säkerhetsheaders och cacheinställningar.
 
 ## 5. Lagren i frontend
 
@@ -200,7 +231,7 @@ Dessa anropar `services/api` direkt.
 | ------------ | ---------------------------------------------------------------------------- | -------------------------------- | -------------------------------------- | --------------------------------- |
 | Dev (lokalt) | `http://localhost:5173` eller enligt lokal konfiguration                     | Vid lokal utveckling             | Enligt lokal konfiguration             | Mock-API eller test-API           |
 | Staging      | [Kraftly staging](https://kraftly-suzan-team-staging-ny.onrender.com/)       | Enligt deployment-pipelinen      | Enligt staging-konfigurationen         | Kraftlys test-API v2              |
-| Prod         | [Kraftly production](https://kraftly-suzan-team-production-ny.onrender.com/) | Efter godkänd staging-deployment | Ska vara avstängd enligt CD-kontrollen | Enligt produktionskonfigurationen |
+| Produktion   | [Kraftly production](https://kraftly-suzan-team-production-ny.onrender.com/) | Efter godkänd staging-deployment | Ska vara avstängd enligt CD-kontrollen | Enligt produktionskonfigurationen |
 
 Staging används före produktion. CD-workflowen verifierar staging innan produktionsdeploymenten initieras.
 
@@ -211,8 +242,8 @@ Norge-flaggan styrs via runtime-konfigurationen. Produktionsflödet kontrollerar
 Deployment till staging och produktion sker enligt följande steg:
 
 1. En ändring pushas till GitHub.
-2. CI-workflowen kör sina kvalitetskontroller.
-3. CD-workflowen kör sina verifieringssteg.
+2. CI-workflowen kör sina kvalitetskontroller enligt sina triggers.
+3. CD-workflowen kör sina egna verifieringssteg.
 4. Storybook byggs.
 5. Docker-imagen byggs och taggas med commitens SHA.
 6. Imagen publiceras till GHCR enligt workflowens villkor.

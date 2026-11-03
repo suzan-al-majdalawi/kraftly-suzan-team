@@ -2,75 +2,81 @@
 
 ## 1. Syfte
 
-Det här dokumentet beskriver hur Kraftly Mina sidor byggs, publiceras och driftsätts till staging med Docker, GitHub Actions, GitHub Container Registry (GHCR) och Render.
+Det här dokumentet beskriver hur Kraftly Mina sidor byggs, publiceras och driftsätts till staging och produktion med Docker, GitHub Actions, GitHub Container Registry (GHCR) och Render.
 
 Dokumentet beskriver även:
 
-- CI/CD-flödet från pull request till staging.
+- CI/CD-flödet från pull request till deployment.
 - Hur Docker-imagen byggs och publiceras.
 - Hur Render använder en publicerad image.
-- Skillnaden mellan lokal konfiguration och staging-konfiguration.
+- Skillnaden mellan lokal konfiguration, staging och produktion.
 - Hantering av miljövariabler och secrets.
 - Runtime-konfiguration och feature flags.
 - Verifiering efter deploy.
 - Rollback om en ny version orsakar problem.
 - Kända begränsningar och återstående arbete.
 
-Målet är att deployen ska vara spårbar och reproducerbar. Det ska gå att se vilken commit som byggdes, vilken image som publicerades och vilken version som faktiskt körs i staging.
+Målet är att deployen ska vara spårbar och reproducerbar. Det ska gå att se vilken commit som byggdes, vilken image som publicerades och vilken version som faktiskt körs i respektive miljö.
 
 ## 2. Miljöer och infrastruktur
 
-Projektet använder en lokal utvecklingsmiljö och en stagingmiljö.
+Projektet använder en lokal utvecklingsmiljö samt staging och produktion.
 
-| Miljö   | URL                     | Image                                                | API                     | Uppdatering                             |
-| ------- | ----------------------- | ---------------------------------------------------- | ----------------------- | --------------------------------------- |
-| Lokal   | `http://localhost:8080` | Lokal Docker-build                                   | `http://localhost:4000` | Manuellt med Docker Compose             |
-| Staging | Render staging-URL      | `ghcr.io/suzan-al-majdalawi/kraftly-suzan-team:main` | Render API-URL          | GitHub Actions → GHCR → Render redeploy |
+| Miljö      | URL                                                                          | Image                               | API                                                | Uppdatering                      |
+| ---------- | ---------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------- | -------------------------------- |
+| Lokal      | `http://localhost:8080`                                                      | Lokal Docker-build                  | `http://localhost:4000` eller intern Docker-adress | Manuellt med Docker Compose      |
+| Staging    | [Kraftly staging](https://kraftly-suzan-team-staging-ny.onrender.com/)       | GHCR-image taggad med commit-SHA    | Kraftlys test-API v2                               | GitHub Actions → GHCR → Render   |
+| Produktion | [Kraftly production](https://kraftly-suzan-team-production-ny.onrender.com/) | Samma SHA-taggade image som staging | Enligt produktionskonfigurationen                  | Efter godkänd staging-deployment |
 
-**Staging:**  
-https://kraftly-suzan-team-staging-ny.onrender.com/
+CD-workflowen använder en SHA-taggad image för att säkerställa att samma byggda version används i staging och produktion.
 
-**Produktion:**  
-https://kraftly-suzan-team-production-ny.onrender.com/
-
-Produktionsadressen finns dokumenterad, men det innebär inte i sig att produktionsmiljön är färdigkonfigurerad eller att den har samma deployflöde som staging.
+Taggen `main` kan också publiceras, men den är inte en permanent versionsidentifierare. Vid deployment och rollback är commit-SHA den tydligare referensen.
 
 ### Infrastrukturens ansvar
 
-| Tjänst         | Ansvar                                                       |
-| -------------- | ------------------------------------------------------------ |
-| GitHub         | Källkod, branches och pull requests                          |
-| GitHub Actions | CI, Docker-build och publicering                             |
-| GHCR           | Lagring av Docker-images                                     |
-| Render         | Körning av staging-tjänsten                                  |
-| Docker         | Paketering av frontend och runtime-miljö                     |
-| Nginx          | Servering av frontend och hantering av runtime-konfiguration |
+| Tjänst         | Ansvar                                                    |
+| -------------- | --------------------------------------------------------- |
+| GitHub         | Källkod, branches och pull requests                       |
+| GitHub Actions | CI, verifiering, Docker-build, publicering och deployment |
+| GHCR           | Lagring av Docker-images                                  |
+| Render         | Körning av staging- och produktionstjänster               |
+| Docker         | Paketering av frontend och runtime-miljö                  |
+| Nginx          | Servering av frontend och reverse proxy för API-anrop     |
 
 ## 3. CI/CD-flödet
 
-Det övergripande flödet är:
+Projektet använder två separata workflows:
+
+- `.github/workflows/ci.yml` kör separata kvalitetskontroller.
+- `.github/workflows/cd.yml` innehåller egna verifieringssteg och ansvarar för Docker-build, publicering och deployment.
+
+Det övergripande CD-flödet är:
 
 ```text
-Utveckling
-    ↓
-Pull request
-    ↓
-CI – tester och build
-    ↓
-Granskning och godkännande
-    ↓
-Merge till main
-    ↓
-GitHub Actions
-    ↓
-Docker-build
-    ↓
+Ändring och pull request
+          ↓
+Granskning och merge till main
+          ↓
+CD – verify
+          ↓
+Tester, tillgänglighet och build
+          ↓
+Bygg Storybook
+          ↓
+Bygg Docker-image
+          ↓
 Publicera image till GHCR
-    ↓
-Render – deploy/redeploy
-    ↓
-Verifiering av staging
+          ↓
+Deploy till staging
+          ↓
+Verifiera staging
+          ↓
+Deploy samma SHA-image till produktion
+          ↓
+Verifiera produktion om PROD_URL finns
 ```
+
+`ci.yml` och `cd.yml` är separata workflows. CD-workflowen har egna verifieringssteg. Det ska därför inte förutsättas att `ci.yml` automatiskt startar `cd.yml`.
 
 ### Steg 1 – Ändring och pull request
 
@@ -78,45 +84,44 @@ Utvecklaren gör en ändring i en feature-branch och pushar den till GitHub.
 
 En pull request skapas mot `main`.
 
-Innan ändringen mergas ska relevanta kontroller genomföras, exempelvis:
+Innan ändringen mergas bör relevanta kontroller genomföras, exempelvis:
 
 - Kodgranskning.
 - Unit- och komponenttester.
-- API-tester.
 - Tillgänglighetstester.
 - Produktionsbuild.
 - Eventuella E2E-tester.
 
-Syftet är att upptäcka fel innan ändringen når staging.
+Vilka kontroller som är obligatoriska avgörs av projektets workflow och branch protection-inställningar.
 
 ### Steg 2 – CI körs
 
-GitHub Actions kör projektets konfigurerade kontroller.
+CI-workflowen i `ci.yml` kör projektets konfigurerade kvalitetskontroller vid relevanta push- och pull request-händelser.
 
-Exempel på kontroller:
+CD-workflowen har dessutom egna verifieringssteg i jobbet `verify`.
+
+Dessa omfattar bland annat:
 
 ```bash
-npm run test:run
-npm run test:api
+npm ci
 npm run test:a11y
+npm run test:run
 npm run build
 ```
 
-Om projektets workflow innehåller ytterligare tester ska även dessa köras.
-
-En pull request ska inte mergas om obligatoriska kontroller misslyckas, om inte teamet uttryckligen har beslutat om ett undantag.
+CD-flödet bygger även Storybook innan Docker-imagen byggs.
 
 ### Steg 3 – Merge till main
 
 När pull requesten har granskats och godkänts mergas den till `main`.
 
-Detta utlöser det publiceringsflöde som är konfigurerat i GitHub Actions.
+CD-workflowens villkor avgör när Docker-imagen publiceras och när deployment genomförs. Publicering och deployment sker enligt workflowens villkor för `main` och pull requests.
 
 ### Steg 4 – Docker-image byggs
 
-GitHub Actions bygger frontendens Docker-image med projektets `Dockerfile`.
+CD-workflowen bygger frontendens Docker-image med projektets `Dockerfile` efter godkända verifieringssteg.
 
-Builden paketerar applikationen och dess runtime-miljö så att samma image kan användas i olika miljöer.
+Builden paketerar applikationen och dess runtime-miljö så att samma image kan användas i flera miljöer.
 
 Det är viktigt att skilja på:
 
@@ -128,50 +133,59 @@ Dessa steg är inte samma sak.
 
 ### Steg 5 – Image publiceras till GHCR
 
-Efter en lyckad build publicerar GitHub Actions imagen till GitHub Container Registry.
+GitHub Actions publicerar imagen till GitHub Container Registry enligt workflowens villkor.
 
-Image-taggen som används är:
+Image-namnet är:
 
 ```text
-ghcr.io/suzan-al-majdalawi/kraftly-suzan-team:main
+ghcr.io/suzan-al-majdalawi/kraftly-suzan-team
 ```
 
-Taggen `main` pekar på den image som senast publicerats med den taggen. Den är därför inte en permanent versionsidentifierare.
+Imagen taggas med commitens SHA. En `main`-tagg kan också publiceras.
 
-För bättre spårbarhet bör även en image med commit-SHA användas, exempelvis:
+Exempel på SHA-taggad image:
 
 ```text
 ghcr.io/suzan-al-majdalawi/kraftly-suzan-team:<commit-sha>
 ```
 
-Då går det att identifiera exakt vilken kodversion en image innehåller.
+Taggen `main` pekar på den image som senast publicerats med den taggen. Den är därför inte en permanent versionsidentifierare.
 
-### Steg 6 – Render använder imagen
+SHA-taggen gör det möjligt att identifiera exakt vilken kodversion en image innehåller.
 
-Render-konfigurationen använder en redan byggd Docker-image via alternativet **Existing Image**.
+### Steg 6 – Render deployar staging
 
-Render hämtar imagen från GHCR och startar tjänsten med den konfiguration som finns i Render.
+Efter att imagen har publicerats initierar GitHub Actions deployment till staging via Render Deploy Hook.
 
-**Viktigt:** När GitHub Actions publicerar en ny image innebär det inte automatiskt att Render börjar köra den nya imagen.
+Render hämtar den SHA-taggade imagen från GHCR och startar staging-tjänsten med den konfiguration som finns i Render.
 
-En ny image behöver följas av en ny deploy eller redeploy i Render, om inte ett separat automatiserat deployflöde är konfigurerat.
+CD-workflowen väntar därefter på att staging ska kunna verifieras.
 
-Om en Render Deploy Hook används kan GitHub Actions anropa den efter att publiceringen till GHCR har lyckats.
+### Steg 7 – Staging verifieras
 
-### Steg 7 – Deploy verifieras
+CD-workflowen verifierar staging genom att kontrollera `/version.txt`.
 
-Efter deploy kontrolleras att:
+Versionskontrollen används för att säkerställa att den förväntade versionen har startat.
 
-1. Render har genomfört deployen utan fel.
-2. Tjänsten har status `Live`.
-3. Rätt image och commit körs.
-4. Staging-URL svarar.
-5. Frontend laddas utan runtime-fel.
-6. API-anrop fungerar.
-7. Runtime-konfigurationen har rätt miljöinställningar.
-8. Render-loggarna inte visar nya start- eller konfigurationsfel.
+Om staging-verifieringen misslyckas ska produktionsdeploymenten inte fortsätta.
 
-En lyckad Docker-build betyder inte automatiskt att deployen är lyckad. Verifieringen måste göras efter att Render har startat den nya versionen.
+Utöver workflowens versionskontroll bör relevanta användarflöden och API-funktioner kontrolleras vid behov.
+
+### Steg 8 – Render deployar produktion
+
+Efter godkänd staging initierar CD-workflowen deployment till produktion.
+
+Produktionen använder samma SHA-taggade Docker-image som redan har verifierats i staging.
+
+Imagen byggs alltså inte om mellan miljöerna.
+
+Miljöspecifika inställningar, exempelvis API-URL och feature flags, konfigureras separat för respektive Render-tjänst.
+
+### Steg 9 – Produktion verifieras
+
+CD-workflowen kan kontrollera produktionsversionen genom `/version.txt` om `PROD_URL` är konfigurerad.
+
+Om `PROD_URL` saknas hoppas versionskontrollen över med en varning. Det innebär att en lyckad deployment inte i sig bevisar att produktionsversionen har verifierats genom denna kontroll.
 
 ## 4. Docker och lokal utveckling
 
@@ -183,7 +197,7 @@ Frontend nås normalt via:
 http://localhost:8080
 ```
 
-API nås via:
+API nås normalt via:
 
 ```text
 http://localhost:4000
@@ -220,34 +234,38 @@ Kontrollera att `.env` är undantagen i `.gitignore`.
 
 Web-containern använder bland annat miljövariabler för att kommunicera med API-containern.
 
-Exempel:
+Exempel på konfiguration:
 
 ```yaml
 environment:
-  APP_ENV: staging
+  APP_ENV: local
   API_URL: http://api:4000
   API_KEY: ${API_KEY:?API_KEY saknas – kontrollera .env}
 ```
 
 Observera att `api` är tjänstens nätverksnamn inne i Docker Compose. Det är därför inte samma adress som `localhost:4000`.
 
-`APP_ENV` ska sättas till rätt miljö. Om konfigurationen används lokalt bör värdet inte ange staging om det inte är avsiktligt.
+`APP_ENV` ska ange den miljö som faktiskt används. För lokal utveckling ska den inte ange `staging` om det inte är avsiktligt.
+
+Kontrollera även att `API_URL` motsvarar Nginx-konfigurationens förväntade basadress. Om Nginx lägger till `/api/` i `proxy_pass` ska API-URL:en inte redan innehålla samma sökväg.
 
 ## 5. Konfiguration – var finns variablerna?
 
-Miljövariabler används för att skilja mellan lokal utveckling och staging.
+Miljövariabler används för att skilja mellan lokal utveckling, staging och produktion.
 
-| Variabel             | Hemlig? | Lokalt                                             | Staging                                               | Används av                            |
-| -------------------- | ------- | -------------------------------------------------- | ----------------------------------------------------- | ------------------------------------- |
-| `API_KEY`            | Ja      | `.env`                                             | Render Environment                                    | API och eventuell serverkonfiguration |
-| `API_URL`            | Nej     | `http://localhost:4000` eller intern Docker-adress | Render API-URL                                        | Web/Nginx eller runtime-konfiguration |
-| `PORT`               | Nej     | Enligt lokal serverkonfiguration                   | Render-port, exempelvis `10000`                       | Server/Render                         |
-| `APP_ENV`            | Nej     | `local`                                            | `staging`                                             | Runtime-konfiguration                 |
-| `RENDER_DEPLOY_HOOK` | Ja      | Behövs normalt inte                                | GitHub Actions secret om hook används                 | GitHub Actions                        |
-| `STAGING_URL`        | Nej     | Behövs normalt inte                                | GitHub Actions/CI                                     | Verifiering                           |
-| `GITHUB_TOKEN`       | Ja      | Behövs normalt inte                                | GitHub Actions tillhandahåller normalt `GITHUB_TOKEN` | GitHub/GHCR                           |
+| Variabel             | Hemlig? | Lokal miljö                                 | Staging                                  | Produktion                                      |
+| -------------------- | ------- | ------------------------------------------- | ---------------------------------------- | ----------------------------------------------- |
+| `API_KEY`            | Ja      | `.env`                                      | Render Environment                       | Render Environment                              |
+| `API_URL`            | Nej     | Lokal API-adress eller intern Docker-adress | Render Environment                       | Render Environment                              |
+| `PORT`               | Nej     | Enligt lokal serverkonfiguration            | Render-port                              | Render-port                                     |
+| `APP_ENV`            | Nej     | `local`                                     | `staging`                                | `production`                                    |
+| `FEATURE_NORWAY`     | Nej     | Enligt lokal konfiguration                  | Enligt staging-konfigurationen           | `false` enligt produktionskravet                |
+| `RENDER_DEPLOY_HOOK` | Ja      | Behövs normalt inte                         | GitHub Actions secret                    | GitHub Actions secret för produktion            |
+| `STAGING_URL`        | Nej     | Behövs normalt inte                         | GitHub Actions variabel/konfiguration    | –                                               |
+| `PROD_URL`           | Nej     | Behövs normalt inte                         | –                                        | GitHub Actions variabel för produktionskontroll |
+| `GITHUB_TOKEN`       | Ja      | Behövs normalt inte                         | Tillhandahålls normalt av GitHub Actions | Tillhandahålls normalt av GitHub Actions        |
 
-Den exakta användningen av variablerna ska följa projektets Docker-, Nginx- och workflow-konfiguration.
+Den exakta användningen av variablerna ska följa projektets Docker-, Nginx-, Render- och workflow-konfiguration.
 
 ### Secrets
 
@@ -280,7 +298,7 @@ Skriptet skapar `config.js` när Nginx-containern startar.
 
 Det gör att samma frontend-image kan användas i flera miljöer med olika inställningar.
 
-Exempel på runtime-konfiguration för staging:
+Exempel på runtime-konfiguration:
 
 ```javascript
 window.__KRAFTLY__ = {
@@ -296,19 +314,15 @@ window.__KRAFTLY__ = {
 - `env` anger vilken miljö frontend kör i.
 - `features.norway` styr om Norge-funktionen är aktiverad.
 
-I staging är Norge-funktionen aktiverad:
+Staging kan ha Norge-funktionen aktiverad enligt staging-konfigurationen.
+
+Produktionsmiljön konfigureras separat. Enligt produktionskravet ska Norge-funktionen vara avstängd:
 
 ```javascript
-norway: true;
+norway: false,
 ```
 
-Produktionsmiljön ska konfigureras separat och ska inte automatiskt ärva staging-inställningen.
-
-Om Norge-funktionen ska vara avstängd i produktion ska konfigurationen exempelvis ange:
-
-```javascript
-norway: false;
-```
+CD-flödet kontrollerar att `FEATURE_NORWAY` är avstängd i produktion.
 
 ### Varför runtime-konfiguration?
 
@@ -342,7 +356,7 @@ Den gamla nyckeln ska inte fortsätta användas utan kontroll.
 
 ### Den nya nyckeln
 
-Den nya nyckeln ska lagras som en secret/environment variable i den miljö där API:et körs.
+Den nya nyckeln ska lagras som en secret/environment variable i den miljö där API-anslutningen konfigureras.
 
 Exempel på variabelnamn:
 
@@ -361,7 +375,7 @@ Rekommenderad åtgärd:
 1. Återkalla eller rotera den gamla nyckeln.
 2. Skapa en ny nyckel.
 3. Lägg den nya nyckeln i rätt secrets-hantering.
-4. Kontrollera att API:et använder den nya nyckeln.
+4. Kontrollera att API-anslutningen använder den nya nyckeln.
 5. Testa autentiseringen.
 6. Kontrollera att nyckeln inte exponeras i frontend eller loggar.
 
@@ -369,7 +383,7 @@ Om en aktiv secret har läckt i Git-historiken bör historiken saneras enligt pr
 
 ## 8. Verifiering efter deploy
 
-Varje staging-deploy ska verifieras innan den betraktas som färdig.
+Varje deployment ska verifieras innan den betraktas som färdig.
 
 ### Kontroll 1 – Render-status
 
@@ -379,7 +393,7 @@ Varje staging-deploy ska verifieras innan den betraktas som färdig.
 Live
 ```
 
-Kontrollera även deployhistoriken och att den senaste deployen har slutförts.
+Kontrollera även deployhistoriken och att den senaste deploymenten har slutförts.
 
 ### Kontroll 2 – Staging-URL
 
@@ -396,11 +410,26 @@ Kontrollera att:
 - Relevanta vyer laddas.
 - Inga kritiska fel visas i webbläsarens konsol.
 
-### Kontroll 3 – API
+### Kontroll 3 – Produktion
+
+Öppna:
+
+https://kraftly-suzan-team-production-ny.onrender.com/
+
+Kontrollera att:
+
+- Tjänsten är tillgänglig.
+- Startsidan och inloggningssidan laddas.
+- Relevanta användarflöden fungerar.
+- API-anrop fungerar.
+- Norge-funktionen är avstängd.
+- Inga nya kritiska fel visas i webbläsarens konsol.
+
+### Kontroll 4 – API
 
 Kontrollera att API-tjänsten svarar.
 
-Om health-endpointen finns tillgänglig:
+Om en health-endpoint finns tillgänglig kan den användas:
 
 ```text
 /healthz
@@ -409,28 +438,36 @@ Om health-endpointen finns tillgänglig:
 Exempel:
 
 ```bash
-curl -i https://<staging-api-url>/healthz
+curl -i https://<api-url>/healthz
 ```
 
 Kontrollera att API:et ger ett förväntat svar.
 
 Ett lyckat health-check visar att tjänsten svarar, men det bevisar inte att alla API-funktioner fungerar. Därför behöver även relevanta API-anrop testas.
 
-### Kontroll 4 – Version och commit
+### Kontroll 5 – Version och commit
 
 Om `/version.txt` är tillgänglig kan den användas för att kontrollera vilken version som körs.
 
-Exempel:
+Staging:
 
 ```bash
-curl -i https://<staging-url>/version.txt
+curl -i https://kraftly-suzan-team-staging-ny.onrender.com/version.txt
+```
+
+Produktion:
+
+```bash
+curl -i https://kraftly-suzan-team-production-ny.onrender.com/version.txt
 ```
 
 Jämför resultatet med commit-SHA för den version som skulle deployas.
 
+CD-workflowen kontrollerar staging-versionen. Produktionskontrollen körs om `PROD_URL` är konfigurerad.
+
 Om endpointen inte finns ska motsvarande versionsinformation kontrolleras via Render och GHCR.
 
-### Kontroll 5 – Loggar
+### Kontroll 6 – Loggar
 
 Öppna Render-loggarna och kontrollera:
 
@@ -440,7 +477,7 @@ Om endpointen inte finns ska motsvarande versionsinformation kontrolleras via Re
 - Att API-anslutningen fungerar.
 - Att inga nya kritiska fel uppstår.
 
-### Kontroll 6 – Funktionell kontroll
+### Kontroll 7 – Funktionell kontroll
 
 Testa de viktigaste användarflödena efter deploy:
 
@@ -451,12 +488,13 @@ Testa de viktigaste användarflödena efter deploy:
 - Förbrukningsinformation.
 - Relevanta feature flags.
 - Norge-funktionen i staging.
+- Att Norge-funktionen är avstängd i produktion.
 
 Det är särskilt viktigt att testa funktioner som har ändrats i den aktuella pull requesten.
 
 ## 9. Rollback
 
-Rollback används om en ny deploy orsakar fel som påverkar användarna eller gör staging instabil.
+Rollback används om en ny deployment orsakar fel som påverkar användarna eller gör en miljö instabil.
 
 Målet är att snabbt återgå till en tidigare fungerande version.
 
@@ -464,13 +502,13 @@ Målet är att snabbt återgå till en tidigare fungerande version.
 
 1. Identifiera den senaste fungerande image-taggen eller commit-SHA.
 2. Öppna Render-dashboarden.
-3. Öppna aktuell staging-service.
+3. Öppna aktuell staging- eller produktionstjänst.
 4. Kontrollera vilken image som används.
 5. Välj den tidigare fungerande imagen.
 6. Spara ändringen.
 7. Starta en ny deploy/redeploy.
 8. Vänta tills Render visar `Live`.
-9. Öppna staging-URL.
+9. Öppna miljöns URL.
 10. Kontrollera versionen och API-anropen.
 
 Exempel på image med commit-SHA:
@@ -491,11 +529,11 @@ Om ändringen ska återställas i källkoden används en revert.
 4. Skapa en pull request om projektets arbetsflöde kräver det.
 5. Granska och godkänn pull requesten.
 6. Mergа återställningen till `main`.
-7. GitHub Actions kör CI.
-8. En ny Docker-image byggs.
-9. Imagen publiceras till GHCR.
-10. Render deployas/redeployas med den nya imagen.
-11. Verifiera staging och kontrollera loggarna.
+7. GitHub Actions kör relevanta workflows enligt deras triggers.
+8. CD-workflowen verifierar och bygger en ny Docker-image.
+9. Imagen publiceras till GHCR enligt workflowens villkor.
+10. Render deployas med den nya imagen.
+11. Verifiera staging och produktion enligt respektive deployflöde.
 
 En Git-revert skapar en ny commit. Den skriver inte om den tidigare historiken.
 
@@ -504,12 +542,12 @@ En Git-revert skapar en ny commit. Den skriver inte om den tidigare historiken.
 Rollbacken betraktas som genomförd när:
 
 - Render visar tjänsten som `Live`.
-- Staging-URL svarar.
+- Miljöns URL svarar.
 - Applikationen laddas utan kritiska runtime-fel.
 - API-anrop fungerar.
 - Rätt version eller commit körs.
 - Render-loggarna inte visar nya start- eller konfigurationsfel.
-- De funktioner som påverkades av den tidigare deployen fungerar igen.
+- De funktioner som påverkades av den tidigare deploymenten fungerar igen.
 
 ## 10. Uppmätta deploytider
 
@@ -547,18 +585,13 @@ Det kan göra att det första anropet tar längre tid än efterföljande anrop.
 
 Det är viktigt att skilja på en långsam kallstart och ett faktiskt driftfel.
 
-### Deploy sker inte nödvändigtvis automatiskt
+### Produktionsverifiering
 
-GitHub Actions kan bygga och publicera en ny image utan att Render automatiskt börjar använda den.
+CD-workflowen verifierar staging innan produktionsdeploymenten initieras.
 
-Om en Deploy Hook används ska det kontrolleras att:
+Produktionskontrollen av `/version.txt` körs om `PROD_URL` är konfigurerad. Om variabeln saknas hoppas kontrollen över med en varning.
 
-- Hooken ligger som GitHub Actions secret.
-- Workflowen anropar hooken efter lyckad publicering.
-- Deployen använder rätt image.
-- Workflowen kontrollerar resultatet.
-
-Om detta inte är automatiserat måste redeploy göras manuellt i Render.
+För att få en fullständig automatiserad produktionsverifiering behöver `PROD_URL` vara korrekt konfigurerad.
 
 ### Render-konto och behörigheter
 
@@ -567,6 +600,7 @@ Det ska vara tydligt vem som äger och administrerar Render-kontot.
 Teamet behöver veta:
 
 - Vem som kan ändra staging-service.
+- Vem som kan ändra produktionstjänsten.
 - Vem som kan ändra environment variables.
 - Vem som kan starta redeploy.
 - Vem som kan genomföra rollback.
@@ -599,33 +633,20 @@ permissions:
 
 Om GHCR-imagen är privat måste Render också ha rätt att hämta den.
 
-### Ingen verifierad produktionsprocess
-
-Staging är den miljö som beskrivs i det nuvarande deployflödet.
-
-Produktion ska inte betraktas som färdigkonfigurerad förrän följande är etablerat och verifierat:
-
-- Separat produktionsservice.
-- Produktionsspecifika environment variables.
-- Produktionsspecifika secrets.
-- API-anslutning.
-- Feature flag-konfiguration.
-- Deploy med godkännande.
-- Verifiering efter deploy.
-- Rollback-rutin.
-
 ## 12. Produktion och M5
 
 Målet för M5 är att produktion ska deployas med samma Docker-image och commit-SHA som har verifierats i staging.
 
-Det innebär följande flöde:
+Flödet är:
 
 ```text
 Merge till main
       ↓
-CI
+CD – verify
       ↓
-Build Docker-image
+Tester och build
+      ↓
+Bygg Docker-image
       ↓
 Publicera image till GHCR
       ↓
@@ -633,18 +654,16 @@ Deploy till staging
       ↓
 Verifiera staging
       ↓
-Approval
-      ↓
 Deploy samma image till produktion
       ↓
-Verifiera produktion
+Verifiera produktion om PROD_URL finns
 ```
 
-Produktionsdeployen ska använda samma image som verifierats i staging. Den ska inte bygga en separat image med annan kod.
+Produktionsdeployen använder samma image som verifierats i staging. Den ska inte bygga en separat image med annan kod.
 
-Miljöspecifika inställningar, till exempel API-URL och feature flags, ska däremot konfigureras separat.
+Miljöspecifika inställningar, till exempel API-URL och feature flags, konfigureras separat.
 
-Produktionsdeploy ska kräva ett uttryckligt godkännande innan den genomförs.
+Eventuellt krav på manuellt godkännande före produktionsdeployment ska dokumenteras utifrån den faktiska konfigurationen i GitHub Environments och workflowen. Det ska inte beskrivas som obligatoriskt om det inte är konfigurerat.
 
 ## 13. Viktiga filer
 
@@ -653,50 +672,65 @@ Produktionsdeploy ska kräva ett uttryckligt godkännande innan den genomförs.
 | `Dockerfile`                  | Bygger frontend/Nginx-imagen                                       |
 | `mock-api/Dockerfile`         | Bygger backend-imagen för mock-API med Node.js och Express         |
 | `compose.yaml`                | Startar lokal web och API                                          |
-| `nginx.config.template`       | Nginx-konfiguration med runtime-variabler                          |
+| `nginx.conf.template`         | Nginx-konfiguration med runtime-variabler                          |
 | `docker/40-runtime-config.sh` | Skapar `config.js` vid containerstart                              |
 | `.env`                        | Lokala secrets och miljövariabler                                  |
 | `mock-api/.env`               | Lokala miljövariabler och secrets för mock-API. Ska inte committas |
 | `.env.example`                | Exempel på lokala och mock-API miljövariabler                      |
-| `.github/workflows/`          | CI/CD och publicering till GHCR                                    |
+| `.github/workflows/ci.yml`    | Separata CI-kontroller                                             |
+| `.github/workflows/cd.yml`    | Verifiering, Docker-build, GHCR-publicering och deployment         |
 
 Kontrollera alltid att filnamnen stämmer med projektets aktuella struktur.
 
 ## 14. Checklista inför och efter deploy
 
+Checklistorna är generella och ska bockas av för varje deployment. En ikryssad ruta ska inte tolkas som att kontrollen redan har genomförts.
+
 ### Inför deploy
 
 - [x] Pull request är granskad och godkänd.
 - [x] Obligatoriska CI-kontroller är gröna.
+- [x] CD-workflowens verifieringssteg är gröna.
 - [x] Produktionsbuild fungerar.
 - [x] Ändringen är mergad till `main`.
 - [x] GitHub Actions har byggt imagen.
 - [x] Imagen har publicerats till GHCR.
 - [x] Rätt commit-SHA finns tillgänglig.
-- [x] Render använder rätt image.
 
-### Efter deploy
+### Efter staging-deploy
 
 - [x] Render visar `Live`.
 - [x] Rätt image/commit körs.
 - [x] Staging-URL svarar.
-- [x] API health-check fungerar.
+- [x] `/version.txt` visar förväntad version.
+- [x] API-anrop fungerar.
 - [x] Frontend laddas utan kritiska fel.
 - [x] Inloggning fungerar.
 - [x] Viktiga användarflöden fungerar.
 - [x] Runtime-konfigurationen är korrekt.
 - [x] Feature flags har rätt värden.
 - [x] Render-loggarna är kontrollerade.
-- [x] Deploytiden är dokumenterad.
+
+### Efter produktionsdeploy
+
+- [x] Render visar `Live`.
+- [x] Samma SHA-taggade image som staging används.
+- [x] Produktions-URL svarar.
+- [x] Produktionsversionen är verifierad, om `PROD_URL` är konfigurerad.
+- [x] API-anrop fungerar.
+- [x] Frontend laddas utan kritiska fel.
+- [x] Viktiga användarflöden fungerar.
+- [x] Norge-funktionen är avstängd.
+- [x] Render-loggarna är kontrollerade.
 
 ## 15. Sammanfattning
 
-Kraftly Mina sidor använder GitHub Actions för CI och för att bygga och publicera Docker-images till GHCR. Render använder en publicerad image för att köra staging.
+Kraftly Mina sidor använder GitHub Actions för CI och för att verifiera, bygga och publicera Docker-images till GHCR. Render använder den publicerade SHA-taggade imagen för att köra staging och produktion.
 
-Det är viktigt att skilja mellan att bygga en image, publicera den och faktiskt driftsätta den. En publicerad image innebär inte automatiskt att Render kör den senaste versionen.
+Det är viktigt att skilja mellan att bygga en image, publicera den och faktiskt driftsätta den. En publicerad image innebär inte i sig att Render kör den senaste versionen.
 
-Varje deploy ska därför följas av verifiering av tjänstens status, image/commit, frontend, API och relevanta användarflöden.
+CD-workflowen deployar först till staging och verifierar versionen genom `/version.txt`. Efter godkänd staging deployas samma SHA-taggade image till produktion.
+
+Produktionskontrollen av `/version.txt` körs om `PROD_URL` är konfigurerad. Varje deployment bör dessutom följas av lämplig kontroll av tjänstens status, image/commit, frontend, API och relevanta användarflöden.
 
 Rollback ska kunna göras genom att återgå till en tidigare image eller genom att revert:a en ändring i Git.
-
-Målet för M5 är att samma SHA/image som har verifierats i staging ska kunna deployas till produktion efter ett uttryckligt godkännande.
