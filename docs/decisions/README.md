@@ -1,70 +1,114 @@
-# Arkitektoniska beslutsregister (ADR)
+# Arkitektoniskt beslutsregister (ADR)
 
-Det här registret samlar projektets arkitektoniska beslut (Architecture Decision Records). Varje större beslut dokumenteras i en separat Markdown-fil enligt mallen:
+Det här dokumentet är registret över projektets Architecture Decision Records (ADR).
 
-**Datum · Beslut · Bakgrund · Alternativ · Motivering · Konsekvenser**
+Ett ADR beskriver ett viktigt arkitektoniskt beslut, varför beslutet fattades, vilka alternativ som övervägdes och vilka konsekvenser beslutet får för systemet.
 
-## Beslutsregister
+## ADR-register
 
-| ADR                                                                           | Beslut                                                                                          | Datum      | Status     |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------- | ---------- |
-| [ADR 001 – Verktyg för E2E-tester](e2e-verktyg.md)                            | Dokumenterar valet av Playwright för automatiserade E2E-tester.                                 | 2026-08-28 | Godkänt    |
-| [ADR 002 – Hosting för Kraftly Mina sidor](hosting.md)                        | Beskriver valet av Render för staging och hur container-imagen publiceras och driftsätts.       | 2026-09-18 | Godkänt    |
-| [ADR 003 – Norge-stödet bakom en feature flag](feature-flags.md)              | Dokumenterar beslutet att styra Norge-stödet med en feature flag.                               | 2026-09-28 | Godkänt    |
-| [ADR 004 – Tokenlagring](tokenlagring.md)                                     | Beskriver hur access token och refresh token lagras och hanteras.                               | 2026-10-05 | Godkänt    |
-| [ADR 005 – Rendering: SPA med Vue och Vite](rendering.md)                     | Dokumenterar valet att fortsätta använda SPA i stället för SSR eller SSG.                       | 2026-10-30 | Föreslaget |
-| [ADR 006 – Användarroller och behörigheter](roller-och-behorigheter.md)       | Beskriver förslaget för användarroller och åtkomst till systemets funktioner.                   | Ej angivet | Föreslaget |
-| [ADR 007 – Autentisering och användardata](autentisering-och-anvandardata.md) | Dokumenterar hantering av sessioner, samtidiga refresh-anrop och normalisering av användardata. | Ej angivet | Föreslaget |
+|  Nr | Beslut                 | Dokument                             | Datum      | Status     |
+| --: | ---------------------- | ------------------------------------ | ---------- | ---------- |
+| 001 | Val av E2E-testverktyg | [e2e-verktyg.md](e2e-verktyg.md)     | 2026-08-28 | Godkänt    |
+| 002 | Hosting                | [hosting.md](hosting.md)             | 2026-09-18 | Godkänt    |
+| 003 | Feature flags          | [feature-flags.md](feature-flags.md) | 2026-09-28 | Godkänt    |
+| 004 | Tokenlagring           | [tokenlagring.md](tokenlagring.md)   | 2026-10-05 | Godkänt    |
+| 005 | Rendering              | [rendering.md](rendering.md)         | 2026-10-30 | Föreslaget |
 
-## De tre viktigaste besluten – och varför
+Datum och status ska uppdateras när ett beslut faktiskt har fattats. Ett ADR med statusen `Föreslaget` är inte ett godkänt arkitekturbeslut.
 
-Följande tre områden är särskilt viktiga för den som ska förstå, vidareutveckla eller ta över projektet.
+## Viktiga arkitektoniska beslut
 
-1. **[Tokenlagring](tokenlagring.md):** Hanteringen av access token och refresh token påverkar säkerheten och hela inloggningsflödet. Den som arbetar med autentisering behöver förstå hur token lagras och hanteras.
+### Tokenlagring
 
-2. **[Hosting](hosting.md):** Beslutet påverkar hur applikationen byggs, publiceras och körs i olika miljöer. En ny teammedlem behöver förstå hur staging hostas, hur Docker-imagen publiceras till GHCR och hur Render-deployen verifieras.
+Access token lagras i minnet och inte i `localStorage`. Refresh token hanteras via en `HttpOnly`-cookie. Sessionen kan återställas genom ett refresh-anrop.
 
-3. **[Feature flags](feature-flags.md):** Beslutet om att lägga Norge-stödet bakom en feature flag visar hur funktionalitet kan aktiveras och styras utan att påverka övriga användare. Det är viktigt att förstå när nya funktioner eller marknadsstöd utvecklas.
+Se [ADR 004 – Tokenlagring](tokenlagring.md).
 
-## Beslut som saknar eget dokument
+### Hosting och deployment
 
-Det finns för närvarande inga ytterligare ADR-filer i registret. Nya arkitektoniska beslut ska dokumenteras i egna filer innan de läggs till här.
+Projektets hosting- och deploymentlösning bygger på Docker, GitHub Container Registry (GHCR), GitHub Actions och Render.
 
-Eventuella framtida beslut om exempelvis användarroller, behörigheter eller hantering av användardata kan få egna ADR-dokument när beslut har fattats och dokumentationen har skapats.
+Se [ADR 002 – Hosting](hosting.md).
+
+### Feature flags
+
+Feature flags används för att styra funktionalitet som kan aktiveras eller inaktiveras beroende på miljö, bland annat Norge-stödet.
+
+Se [ADR 003 – Feature flags](feature-flags.md).
+
+## Föreslagna beslut
+
+Följande beslut finns registrerade men är ännu inte godkända:
+
+- **ADR 005 – Rendering:** beskriver det föreslagna valet av Vue SPA med Vite.
+
+Statusen ska ändras till `Godkänt` först när beslutet har diskuterats och godkänts enligt projektets arbetssätt.
 
 ## Så dokumenterar du ett nytt beslut
 
-När ett nytt arkitektoniskt beslut ska dokumenteras:
+Skapa ett nytt Markdown-dokument i katalogen `docs/decisions/`.
 
-1. Skapa en ny Markdown-fil i den här katalogen.
-2. Använd ett tydligt filnamn med ADR-nummer, till exempel `006-nytt-beslut.md` tex. `005-autentisering-och-anvandardata.md`.
-3. Beskriv bakgrunden och problemet som behöver lösas.
-4. Dokumentera vilka alternativ som övervägdes.
-5. Beskriv vilken lösning som valdes och varför.
-6. Beskriv konsekvenserna av beslutet, både fördelar och eventuella nackdelar.
-7. Ange datum och beslutets status.
-8. Uppdatera beslutsregistret ovan.
+Använd ett beskrivande filnamn som följer projektets befintliga filnamnskonvention. Exempel:
 
-Ett ADR bör följa strukturen:
+```text
+docs/decisions/nytt-beslut.md
+```
 
-- Datum
-- Beslut
-- Bakgrund
-- Alternativ
-- Motivering
-- Konsekvenser
+Lägg därefter till beslutet i tabellen ovan med:
 
-Om ett godkänt beslut ändras ska ett nytt ADR skapas som ersätter det tidigare beslutet. Det tidigare ADR:et ska behållas för att bevara beslutshistoriken.
+- Nästa lediga ADR-nummer.
+- Beslutets titel.
+- Länk till dokumentet.
+- Datum för beslutet, om det finns.
+- Aktuell status.
 
-## Beslutens status
+Varje ADR bör innehålla följande rubriker:
 
-- **Föreslaget (Proposed):** Beslutet diskuteras fortfarande eller väntar på godkännande.
-- **Godkänt (Accepted):** Beslutet har godkänts av teamet.
-- **Ersatt (Superseded):** Beslutet har ersatts av ett nyare beslut.
+```markdown
+# ADR XXX – Beslutets titel
+
+## Status
+
+Föreslaget
+
+## Datum
+
+ÅÅÅÅ-MM-DD
+
+## Kontext
+
+Beskriv problemet eller behovet som kräver ett arkitektoniskt beslut.
+
+## Beslut
+
+Beskriv vilket alternativ som valts eller föreslås.
+
+## Alternativ
+
+Beskriv vilka alternativ som övervägdes.
+
+## Konsekvenser
+
+Beskriv positiva och negativa konsekvenser av beslutet.
+```
+
+Använd nästa lediga nummer i registret. Återanvänd inte ett nummer som redan tillhör ett annat beslut.
+
+## Statusdefinitioner
+
+| Status     | Betydelse                                                 |
+| ---------- | --------------------------------------------------------- |
+| Föreslaget | Beslutet är dokumenterat men ännu inte godkänt.           |
+| Godkänt    | Beslutet har diskuterats och godkänts.                    |
+| Ersatt     | Beslutet har ersatts av ett senare arkitektoniskt beslut. |
+
+Om ett godkänt beslut ändras ska det tidigare beslutets status uppdateras till `Ersatt` och det nya beslutet länkas till det tidigare ADR-dokumentet.
 
 ## Relaterad dokumentation
 
 - [Systemarkitektur](../architecture.md)
 - [CI/CD-pipeline](../pipeline.md)
-- [Projektets README](../../README.md)
-- [Kända problem](../known-issues.md)
+- [Containerlösning](../containers.md)
+- [Säkerhet](../security.md)
+- [Tillgänglighet – M8](../accessability.md)
+- [Tillgänglighetsanalys och åtgärdsplan](../tillganglighetsanalys.md)

@@ -1,7 +1,7 @@
 # Beslut: verktyg för E2E-tester
 
 **Datum:** 2026-08-28, 2026-08-31, 2026-09-01  
-**Senast uppdaterad:** 2026-10-30  
+**Senast uppdaterad:** 2026-11-03  
 **Beslut:** Vi använder **Playwright** för end-to-end-tester.
 
 ## Bakgrund
@@ -21,15 +21,21 @@ Vi jämförde **Cypress** och **Playwright** utifrån våra egna observationer f
 | Headless i CI              | Ja                          | Ja                                  |
 | Felmeddelanden             | Tydliga                     | Tydliga och lätta att följa         |
 
+Tidsvärdena kommer från våra egna observationer under jämförelsen och ska inte ses som generella prestandamätningar.
+
 ## Motivering
 
-Vi väljer Playwright eftersom testkoden är tydlig och det är enkelt att se var ett test misslyckas. Vi tycker också att element-sökningen med exempelvis `getByRole()` gör testerna lätta att förstå. Playwright passar vårt behov av ett smoke-test som kan köras headless i CI.
+Vi väljer Playwright eftersom testkoden är tydlig och det är enkelt att se var ett test misslyckas. Vi tycker också att element-sökningen med exempelvis `getByRole()` gör testerna lätta att förstå.
+
+Playwright passar vårt behov av smoke-tester och användarflöden som kan köras headless i CI. Verktyget ger också stöd för att mocka nätverksanrop och kontrollera navigering i webbläsaren.
 
 ## Konsekvenser
 
-Vi ger upp möjligheten att använda Cypress, som teamet redan har erfarenhet av. Playwright är något långsammare i vårt första test, men skillnaden är liten. Om vi vill byta verktyg senare behöver vi skriva om våra E2E-tester och uppdatera CI-konfigurationen.
+Vi ger upp möjligheten att använda Cypress, som teamet redan har erfarenhet av.
 
-## Smoke-test
+Playwright var något långsammare i vårt första test, men skillnaden bedömdes vara acceptabel. Om vi vill byta verktyg senare behöver vi skriva om våra E2E-tester och uppdatera CI-konfigurationen.
+
+## Smoke-test och teststruktur
 
 Våra Playwright-tester finns i mappen:
 
@@ -47,7 +53,7 @@ npm run e2e:pw
 
 ### Vad testerna kontrollerar
 
-Vi har nu fem aktiva Playwright-tester som kontrollerar:
+Vi har fem aktiva Playwright-tester som kontrollerar:
 
 - Att kunden kan logga in och se sin översikt.
 - Att fel lösenord inte ger tillgång till systemet.
@@ -77,7 +83,7 @@ if (to.meta.guestOnly && authenticated) {
 
 Problemet var att routern inte sparade vilken sida användaren försökte besöka. Efter inloggning skickades användaren därför alltid till startsidan `/` i stället för till den ursprungliga sidan.
 
-Vi uppdaterade därför `src/router/index.js` med följande kod:
+Vi uppdaterade därför `src/router/index.js` med följande logik:
 
 ```js
 if (to.meta.requiresAuth && !authenticated) {
@@ -147,30 +153,30 @@ Det gör testerna tydligare och minskar risken för instabila tester.
 
 Efter ändringarna fungerar redirect-flödet som förväntat. En användare kan försöka öppna en skyddad sida, logga in och sedan komma tillbaka till rätt sida.
 
-Alla fem Playwright-tester passerar.
+Den dokumenterade Playwright-körningen visade att alla fem tester passerade.
 
-## Aktuell teststatus – Playwright
+## Teststatus – Playwright
 
-<badge color="success">5 passed</badge>
-
-Senaste körningen av:
+Den dokumenterade körningen av:
 
 ```powershell
 npm run e2e:pw
 ```
 
-Resultat:
+gav följande resultat:
 
 ```text
 5 passed
 0 failed
 ```
 
-Alla fem aktiva Playwright-tester passerar.
+Alla fem aktiva Playwright-tester passerade i den körningen.
 
-## Tillgänglighetstest med Vitest
+## Kompletterande tester med Vitest
 
-Vi har även arbetat med ett tillgänglighetstest för inloggningssidan `LoginView.vue`.
+Playwright används för att testa hela användarflöden i webbläsaren. För att kontrollera komponenter och API-funktioner använder vi även Vitest.
+
+### Tillgänglighetstest för inloggningssidan
 
 Testfil:
 
@@ -187,19 +193,63 @@ Testet körs med:
 npx vitest run src/a11y/LoginView.a11y.test.js
 ```
 
-**Resultat:** Testet passerar. Båda kontrollerna är gröna.
+Den dokumenterade körningen passerade båda kontrollerna.
 
-## Skillnaden mellan E2E-test och komponenttest
+### API-tester för autentisering och tokenhantering
 
-Vi använder två olika typer av tester:
+Vi har även lagt till:
+
+`src/services/api.test.js`
+
+Testerna kontrollerar:
+
+- Att access token lagras i minnet och inte i `localStorage`.
+- Att skyddade API-anrop skickar access token som Bearer-header.
+- Att en ny access token sparas efter en lyckad refresh.
+- Att access token rensas när refresh returnerar HTTP 401.
+- Att samtidiga refresh-anrop delar samma pågående begäran.
+- Att access token rensas även om logout-anropet misslyckas.
+
+Den dokumenterade körningen:
+
+```powershell
+npx vitest run src/services/api.test.js
+```
+
+gav följande resultat:
+
+```text
+Test Files 1 passed (1)
+Tests 6 passed (6)
+```
+
+Alla sex API-tester passerade.
+
+Dessa API-tester kompletterar E2E-testerna men ersätter inte Playwright. De verifierar API-tjänstens funktioner separat och ska inte förväxlas med tester av hela användarflöden.
+
+## Skillnaden mellan E2E-test och andra tester
+
+Vi använder olika testverktyg för olika nivåer:
 
 - **Playwright:** Testar hela användarflöden i webbläsaren, till exempel inloggning och navigering.
-- **Vitest:** Testar komponenter och tillgänglighet, till exempel `LoginView.vue`.
+- **Vitest:** Testar komponenter, API-funktioner och annan JavaScript-logik.
+- **Vue Test Utils:** Hjälper till att testa Vue-komponenter.
+- **axe:** Används för automatiserade tillgänglighetskontroller.
 
-Dessa tester kompletterar varandra. Playwright kontrollerar att användarflöden fungerar medan Vitest kontrollerar komponenternas funktion och tillgänglighet.
+Dessa tester kompletterar varandra. Playwright kontrollerar att användarflöden fungerar medan Vitest och axe kontrollerar komponenter, API-funktioner och tillgänglighet.
 
 ## Slutsats
 
-Vi fortsätter att använda Playwright som verktyg för E2E-tester. Den 30 oktober 2026 åtgärdade vi redirect-problemet efter inloggning genom att uppdatera `src/router/index.js` och `LoginView.vue`. Vi korrigerade även fakturalokaliseringen i Playwright-testet och förbättrade testernas stabilitet.
+Vi fortsätter att använda Playwright som verktyg för E2E-tester.
 
-Resultatet är att alla fem Playwright-tester nu passerar. Vi har även ett godkänt tillgänglighetstest för `LoginView.vue` med Vitest och axe.
+Den 30 oktober 2026 åtgärdade vi redirect-problemet efter inloggning genom att uppdatera `src/router/index.js` och `LoginView.vue`. Vi korrigerade även fakturalokaliseringen i Playwright-testet och förbättrade testernas stabilitet.
+
+Efter M10 har vi dessutom lagt till kompletterande API-tester för autentisering och tokenhantering.
+
+De dokumenterade testresultaten visar:
+
+- **Playwright:** 5 godkända tester.
+- **LoginView med Vitest och axe:** 2 godkända kontroller.
+- **API-tester med Vitest:** 6 godkända tester.
+
+Vi behåller därför Playwright som huvudverktyg för E2E-tester och använder Vitest för kompletterande tester av komponenter och API-funktioner.

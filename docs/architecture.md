@@ -2,266 +2,252 @@
 
 ## Översikt
 
-Systemet består av en Vue 3 Single Page Application (SPA), en Nginx-container som serverar frontend-filer och vidarebefordrar API-anrop, samt Kraftlys externa test-API.
+Kraftly Mina sidor är en Vue 3 Single Page Application (SPA). Frontend-applikationen byggs till statiska filer som serveras av Nginx i en Docker-container. Nginx fungerar även som reverse proxy för API-anrop till Kraftlys externa test-API v2.
 
 Docker-imagen byggs i GitHub Actions, publiceras till GitHub Container Registry (GHCR) och hämtas av Render vid deployment.
 
-GitHub Actions ansvarar för CI- och CD-processerna. `ci.yml` kör kvalitetskontroller. `cd.yml` bygger och publicerar Docker-imagen samt initierar deployment till Render.
+Projektet använder två GitHub Actions-workflows:
+
+- `ci.yml` kör separata kvalitetskontroller.
+- `cd.yml` ansvarar för verifiering, byggande och publicering av Docker-imagen samt deployment till staging och produktion.
+
+Samma SHA-taggade Docker-image används i båda miljöerna. Staging deployas och verifieras innan samma image deployas till produktion.
 
 ## 1. Architecture diagram – Systemöversikt
 
-Detta diagram visar systemets komponenter, webbläsaren, Nginx och API-kommunikationen.
+Diagrammet visar systemets huvudsakliga komponenter och kommunikationen mellan webbläsaren, frontend, Nginx och det externa API:t.
 
 ```mermaid
 flowchart LR
-
-    subgraph GitHub["GitHub"]
-        CI["GitHub Actions: ci.yml<br/>Tester · lint · build"]
-        CD["GitHub Actions: cd.yml<br/>Bygger och publicerar Docker-image"]
-        GHCR[("GHCR<br/>Imagen taggad med commit-SHA")]
-        DEPLOY["Render Deploy Hook<br/>Initierar deployment"]
-
-        CI -->|"CI-kontroller"| CD
-        CD -->|"docker push :SHA"| GHCR
-        CD -->|"Anropar deploy hook"| DEPLOY
-    end
-
-    subgraph Browser["Kundens webbläsare"]
-        SPA["Vue 3 SPA<br/>Pinia · vue-router<br/>Access token i minnet"]
-    end
-
-    subgraph Render["Render – en container per miljö"]
-        SERVICE["Render Web Service"]
-        NGINX["nginx:1.27-alpine<br/>dist/ + config.js<br/>CSP och säkerhetsheaders"]
-
-        SERVICE --> NGINX
-    end
-
-    subgraph ExternalAPI["Kraftly – externt API"]
-        API["Kraftlys test-API v2<br/>Lokal mock: mock-api/"]
-    end
-
-    GHCR -.->|"Render hämtar Docker-imagen"| SERVICE
-    DEPLOY -.->|"Startar deployment"| SERVICE
-
-    SPA -->|"index.html, assets och config.js"| NGINX
-
-    SPA -->|"/api/v2/...<br/>Bearer-token"| NGINX
-
-    SPA -->|"/api/v2/auth/...<br/>Refresh-cookie"| NGINX
-
-    NGINX -->|"proxy_pass + X-API-Key"| API
-```
-
-## 2. Architecture diagram – CI/CD och deployment
-
-Detta diagram visar hur CI-kontrollerna och CD-processen fungerar, hur Docker-imagen publiceras till GHCR och hur samma image används i staging och produktion.
-
-```mermaid
-flowchart LR
-
-    subgraph GitHub["GitHub"]
-        CI["GitHub Actions: ci.yml<br/>Tester · lint · build"]
-
-        CD["GitHub Actions: cd.yml<br/>Verifiering · Storybook<br/>Bygger Docker-image en gång"]
-
-        GHCR[("GHCR<br/>Imagen taggad med commit-SHA")]
-
-        DEPLOY_STAGING["Render Deploy Hook<br/>Deploy till staging"]
-
-        DEPLOY_PRODUKTION["Render Deploy Hook<br/>Deploy till produktion"]
-
-        CI -->|"CI-kontroller"| CD
-        CD -->|"docker push :SHA"| GHCR
-        CD -->|"Initierar staging"| DEPLOY_STAGING
-        CD -->|"Efter staging-jobbet"| DEPLOY_PRODUKTION
-    end
-
     subgraph Browser["Kundens webbläsare"]
         SPA["Vue 3 SPA<br/>Pinia · vue-router<br/>Access token i minnet"]
     end
 
     subgraph Render["Render – separata miljöer"]
-
-        subgraph Staging["Staging"]
-            SERVICE_STAGING["Render Web Service"]
-            NGINX_STAGING["nginx:1.27-alpine<br/>dist/ + config.js<br/>CSP och säkerhetsheaders"]
-
-            SERVICE_STAGING --> NGINX_STAGING
-        end
-
-        subgraph Production["Produktion"]
-            SERVICE_PRODUKTION["Render Web Service"]
-            NGINX_PRODUKTION["nginx:1.27-alpine<br/>dist/ + config.js<br/>CSP och säkerhetsheaders"]
-
-            SERVICE_PRODUKTION --> NGINX_PRODUKTION
-        end
+        SERVICE["Render Web Service"]
+        NGINX["Nginx 1.27 Alpine<br/>Frontendfiler · config.js<br/>CSP och säkerhetsheaders"]
+        SERVICE --> NGINX
     end
 
     subgraph ExternalAPI["Kraftly – externt API"]
-        API["Kraftlys test-API v2<br/>Lokal mock: mock-api/"]
+        API["Kraftlys test-API v2"]
     end
 
-    GHCR -.->|"Hämtar image :SHA"| SERVICE_STAGING
-    DEPLOY_STAGING -.->|"Startar deployment"| SERVICE_STAGING
+    SPA -->|"index.html · assets · config.js"| NGINX
+    SPA -->|"/api/v2/...<br/>Bearer-token"| NGINX
+    SPA -->|"/api/v2/auth/...<br/>Refresh-cookie"| NGINX
 
-    NGINX_STAGING -->|"Verifiera /version.txt"| DEPLOY_PRODUKTION
-
-    GHCR -.->|"Samma image :SHA"| SERVICE_PRODUKTION
-    DEPLOY_PRODUKTION -.->|"Startar deployment"| SERVICE_PRODUKTION
-
-    SPA -->|"index.html, assets och config.js"| NGINX_STAGING
-
-    SPA -->|"/api/v2/...<br/>Bearer-token"| NGINX_STAGING
-
-    SPA -->|"/api/v2/auth/...<br/>Refresh-cookie"| NGINX_STAGING
-
-    NGINX_STAGING -->|"proxy_pass + X-API-Key"| API
-    NGINX_PRODUKTION -->|"proxy_pass + X-API-Key"| API
+    NGINX -->|"proxy_pass<br/>X-API-Key"| API
 ```
 
-## Komponenter
+## 2. Architecture diagram – CI/CD och deployment
+
+Diagrammet visar hur CD-workflowen verifierar projektet, bygger Docker-imagen, publicerar den till GHCR och deployar samma image till staging och produktion.
+
+```mermaid
+flowchart TD
+    subgraph GitHub["GitHub Actions och GHCR"]
+        CI["ci.yml<br/>Tester · tillgänglighet · build"]
+
+        VERIFY["cd.yml – verify<br/>Tester · tillgänglighet · build"]
+        STORYBOOK["Bygg Storybook"]
+        BUILD["Bygg Docker-image<br/>Tagg: commit-SHA"]
+        GHCR[("GitHub Container Registry<br/>Docker-image :SHA")]
+
+        CI
+        VERIFY --> STORYBOOK --> BUILD --> GHCR
+    end
+
+    subgraph Staging["Render – Staging"]
+        HOOK_STAGING["Render Deploy Hook"]
+        SERVICE_STAGING["Render Web Service"]
+        VERSION_STAGING["Verifiera /version.txt"]
+        HOOK_STAGING --> SERVICE_STAGING --> VERSION_STAGING
+    end
+
+    subgraph Production["Render – Produktion"]
+        HOOK_PROD["Render Deploy Hook"]
+        SERVICE_PROD["Render Web Service"]
+        VERSION_PROD["Verifiera /version.txt<br/>om PROD_URL finns"]
+        HOOK_PROD --> SERVICE_PROD --> VERSION_PROD
+    end
+
+    GHCR -->|"Hämta image :SHA"| SERVICE_STAGING
+    VERSION_STAGING -->|"Efter godkänd staging"| HOOK_PROD
+    GHCR -->|"Samma image :SHA"| SERVICE_PROD
+```
+
+`ci.yml` och `cd.yml` är separata workflows. `cd.yml` innehåller egna verifieringssteg innan deployment. Diagrammet visar därför deras huvudsakliga ansvarsområden utan att påstå att `ci.yml` automatiskt startar `cd.yml`.
+
+## 3. Komponenter
 
 ### Vue 3 SPA
 
-- Vue 3 används för användargränssnittet.
-- Pinia hanterar applikationens tillstånd.
-- vue-router hanterar navigering.
-- Access token lagras i minnet.
-- Frontendens API-anrop skickas via Nginx.
-- Refresh-cookie används för autentiseringsflödet enligt projektets konfiguration.
+Frontend-applikationen består av:
+
+- **Vue 3** – bygger användargränssnittet.
+- **Pinia** – hanterar delat applikationstillstånd.
+- **Vue Router** – hanterar navigering och skyddade rutter.
+- **Services** – samlar funktioner för API-kommunikation.
+- **Access token** – lagras i minnet och används vid autentiserade API-anrop.
+- **Refresh-cookie** – används i autentiseringsflödet enligt API-konfigurationen.
+
+Frontendens API-anrop går via Nginx i stället för direkt till det externa API:t.
 
 ### Nginx
 
-- Serverar frontendens byggda filer från `dist/`.
-- Serverar `config.js`, som används för frontendens runtime-konfiguration.
-- Vidarebefordrar API-anrop till det externa API:t med `proxy_pass`.
-- Hanterar CSP och säkerhetsheaders.
-- Konfigurerar vidarebefordran av `X-API-Key` till det externa API:t.
+Nginx körs i frontendens Docker-container och ansvarar för att:
+
+- Servera byggda frontendfiler från `dist/`.
+- Servera runtime-konfigurationen `config.js`.
+- Hantera SPA-fallback med `try_files`.
+- Vidarebefordra API-anrop till det externa API:t med `proxy_pass`.
+- Vidarebefordra `X-API-Key` till API:t.
+- Tillämpa CSP och övriga säkerhetsheaders.
+- Hantera cacheinställningar för statiska filer och runtime-filer.
 
 ### GitHub Actions och GHCR
 
-Projektet använder två GitHub Actions-workflows med olika ansvarsområden.
+Projektet använder två workflows med olika ansvarsområden.
 
-**CI – `.github/workflows/ci.yml`**
+#### CI – `.github/workflows/ci.yml`
 
-- Kör automatiserade tester.
-- Kör tillgänglighetstester.
-- Bygger Vue-applikationen.
-- Sparar `dist/` som ett artifact.
+CI-workflowen kör kvalitetskontroller vid relevanta push- och pull request-händelser.
 
-**CD – `.github/workflows/cd.yml`**
+Den omfattar bland annat:
 
-CD-workflowen ansvarar för verifiering, byggande och deployment.
+- Installation av beroenden med `npm ci`.
+- Tillgänglighetstester.
+- Automatiserade tester.
+- Byggande av Vue-applikationen.
 
-- Kör tester och tillgänglighetstester i jobbet `verify`.
-- Bygger Storybook och sparar det som ett artifact.
-- Bygger Docker-imagen efter godkända kontroller.
-- Taggar imagen med commitens SHA och även med taggen `main`.
-- Publicerar imagen till GitHub Container Registry (GHCR).
-- Deployar imagen till staging via Render Deploy Hook.
-- Kontrollerar att staging kör rätt commit genom att läsa `/version.txt`.
-- Deployar samma SHA-taggade image till produktion.
-- Kontrollerar produktionens version och att Norge-flaggan är avstängd.
+#### CD – `.github/workflows/cd.yml`
 
-Docker-imagen byggs en gång i CD-workflowen och återanvänds i staging och produktion. Den byggs inte om mellan miljöerna.
+CD-workflowen ansvarar för verifiering, byggande, publicering och deployment.
 
-GHCR används som container registry för projektets Docker-images.
+Flödet omfattar:
+
+1. Kör tester, tillgänglighetstester och byggkontroller i `verify`.
+2. Bygger Storybook och sparar resultatet som artifact.
+3. Bygger Docker-imagen efter godkända kontroller.
+4. Taggar imagen med commitens SHA och `main`.
+5. Publicerar imagen till GHCR på main enligt workflowens villkor.
+6. Initierar deployment till staging via Render Deploy Hook.
+7. Verifierar staging genom att läsa `/version.txt`.
+8. Deployar samma SHA-taggade image till produktion efter godkänd staging.
+
+Docker-imagen byggs en gång i CD-flödet och återanvänds i staging och produktion. Den byggs alltså inte om mellan miljöerna.
+
+Produktionskontrollen av `/version.txt` körs om `PROD_URL` är konfigurerad. Om variabeln saknas hoppas kontrollen över med en varning.
 
 ### Render
 
-Render används för att köra applikationens container i respektive miljö.
+Render används för att köra applikationens Docker-container i staging och produktion.
 
-Render hämtar Docker-imagen från GHCR och startar applikationen vid deployment.
+Render hämtar imagen från GHCR och startar tjänsten vid deployment. Deployment initieras från GitHub Actions via respektive Render Deploy Hook.
 
-Enligt projektets deployment-konfiguration används staging före produktion.
-
-Deployment initieras via en Render Deploy Hook från GitHub Actions.
+Staging används som verifieringsmiljö innan samma image deployas till produktion.
 
 ### Externt API
 
 Kraftlys test-API v2 ligger utanför teamets ägarskap.
 
-Under lokal utveckling kan en mock-API användas för att simulera API-kommunikation.
+Vid lokal utveckling kan projektets `mock-api/` användas för att simulera API-kommunikation.
 
-Den externa API-kommunikationen sker via Nginx, som fungerar som reverse proxy mellan frontend och API.
+I de driftsatta miljöerna går API-kommunikationen via Nginx, som fungerar som reverse proxy mellan frontend och API.
 
-## API-kommunikation och säkerhet
+## 4. API-kommunikation och säkerhet
 
-Frontend skickar API-anrop via Nginx.
+Frontend skickar API-anrop via Nginx. Nginx vidarebefordrar anropen till Kraftlys externa API med `proxy_pass` och konfigurerar headern `X-API-Key`.
 
-Nginx vidarebefordrar anropen till Kraftlys externa test-API v2 med `proxy_pass` och konfigurerar `X-API-Key`.
+Autentiseringen använder två typer av tokens:
 
-Access token lagras i minnet och används för autentiserade API-anrop.
+- **Access token:** lagras i minnet och skickas som Bearer-token vid autentiserade API-anrop.
+- **Refresh token:** hanteras via en cookie i autentiseringsflödet.
 
-Refresh-cookie används endast för autentiseringsflödet enligt projektets konfiguration. I diagrammet representeras detta av anrop till `/api/v2/auth/`.
+API-nyckeln hanteras på serversidan och ska inte exponeras i frontendens publika filer eller `config.js`.
 
-API-nycklar ska hanteras på serversidan och inte exponeras i frontendens publika filer.
+Nginx-konfigurationen innehåller säkerhetsinställningar som Content Security Policy (CSP), övriga säkerhetsheaders och cacheinställningar.
 
-Nginx ansvarar för att vidarebefordra API-anrop och tillämpa de säkerhetsinställningar som definierats i projektets konfiguration.
+## 5. Lagren i frontend
 
-## Lagren i frontend
+Frontend-koden är organiserad i lager med separerade ansvarsområden.
 
-| Lager         | Ansvar                         | Regel                                                                                                                       |
-| ------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `views/`      | Sidor som routern visar        | Anropar normalt stores. Undantag: `InvoicesView.vue`, `LoginView.vue` och `MoveFormView.vue` anropar `services/api` direkt. |
-| `components/` | Återanvändbara UI-komponenter  | Sökningen efter `services/` gav inga direkta träffar i `src/components`.                                                    |
-| `stores/`     | Delat tillstånd mellan vyer    | Hanterar tillstånd och kan anropa `services/` för API-kommunikation.                                                        |
-| `services/`   | Kommunikation med API:t        | Innehåller API-funktioner, exempelvis `fetchInvoices`, `login` och `submitMove`.                                            |
-| `utils/`      | Återanvändbara hjälpfunktioner | Innehåller gemensam logik.                                                                                                  |
-| `router/`     | Navigation och rutter          | Hanterar navigering mellan vyerna.                                                                                          |
+| Lager         | Ansvar                         | Regel                                                                                                                           |
+| ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `views/`      | Sidor som routern visar        | Anropar normalt stores. Undantag: `InvoicesView.vue`, `LoginView.vue` och `MoveFormView.vue` anropar `services/api` direkt.     |
+| `components/` | Återanvändbara UI-komponenter  | Innehåller presentations- och interaktionskomponenter. Sökningen efter `services/` gav inga direkta träffar i `src/components`. |
+| `stores/`     | Delat tillstånd mellan vyer    | Hanterar applikationstillstånd och kan anropa `services/` för API-kommunikation.                                                |
+| `services/`   | Kommunikation med API:t        | Innehåller API-funktioner, exempelvis `fetchInvoices`, `login` och `submitMove`.                                                |
+| `utils/`      | Återanvändbara hjälpfunktioner | Innehåller gemensam logik som kan användas av flera delar av applikationen.                                                     |
+| `router/`     | Navigation och rutter          | Hanterar navigering, ruttkonfiguration och skyddade sidor.                                                                      |
 
-Den avsedda riktningen för dataflödet är `views → stores → services`. Tre vyer gör dock direkta anrop till `services/api`: `InvoicesView.vue`, `LoginView.vue` och `MoveFormView.vue`. Dessa är dokumenterade undantag från lagerprincipen.
+Den avsedda riktningen för dataflödet är:
 
-## Miljöer
+`views → stores → services`
 
-| Miljö        | Adress                                                   | Uppdateras                  | Norge-flaggan                     | API                                            |
-| ------------ | -------------------------------------------------------- | --------------------------- | --------------------------------- | ---------------------------------------------- |
-| Dev (lokalt) | `http://localhost:5173` eller enligt lokal konfiguration | Vid lokal utveckling        | Enligt lokal konfiguration        | Mock-API eller test-API                        |
-| Staging      | Er faktiska staging-adress                               | Enligt deployment-pipelinen | Enligt staging-konfigurationen    | Kraftlys test-API v2                           |
-| Prod         | Er faktiska produktionsadress                            | Efter godkänd deployment    | Enligt produktionskonfigurationen | Kraftlys API enligt deployment-konfigurationen |
+Tre vyer utgör dokumenterade undantag från denna princip:
 
-Staging används före produktion enligt projektets deployment-konfiguration. Kontrollera miljöernas adresser, API och feature flag mot Render och projektets konfiguration innan tabellen färdigställs.
+- `InvoicesView.vue`
+- `LoginView.vue`
+- `MoveFormView.vue`
 
-## Deployment-flöde
+Dessa anropar `services/api` direkt.
 
-Deployment-flödet består av följande steg:
+## 6. Miljöer
+
+| Miljö        | Adress                                                                       | Uppdateras                       | Norge-flaggan                          | API                               |
+| ------------ | ---------------------------------------------------------------------------- | -------------------------------- | -------------------------------------- | --------------------------------- |
+| Dev (lokalt) | `http://localhost:5173` eller enligt lokal konfiguration                     | Vid lokal utveckling             | Enligt lokal konfiguration             | Mock-API eller test-API           |
+| Staging      | [Kraftly staging](https://kraftly-suzan-team-staging-ny.onrender.com/)       | Enligt deployment-pipelinen      | Enligt staging-konfigurationen         | Kraftlys test-API v2              |
+| Prod         | [Kraftly production](https://kraftly-suzan-team-production-ny.onrender.com/) | Efter godkänd staging-deployment | Ska vara avstängd enligt CD-kontrollen | Enligt produktionskonfigurationen |
+
+Staging används före produktion. CD-workflowen verifierar staging innan produktionsdeploymenten initieras.
+
+Norge-flaggan styrs via runtime-konfigurationen. Produktionsflödet kontrollerar att `FEATURE_NORWAY` är avstängd.
+
+## 7. Deployment-flöde
+
+Deployment till staging och produktion sker enligt följande steg:
 
 1. En ändring pushas till GitHub.
-2. GitHub Actions kör CI-workflowen.
-3. Docker-imagen byggs och taggas med commitens SHA.
-4. Imagen publiceras till GHCR.
-5. GitHub Actions anropar Render via en Deploy Hook.
-6. Render hämtar Docker-imagen från GHCR.
-7. Render deployar imagen i aktuell miljö.
-8. Nginx startar och serverar frontendens byggda filer samt vidarebefordrar API-anrop.
+2. CI-workflowen kör sina kvalitetskontroller.
+3. CD-workflowen kör sina verifieringssteg.
+4. Storybook byggs.
+5. Docker-imagen byggs och taggas med commitens SHA.
+6. Imagen publiceras till GHCR enligt workflowens villkor.
+7. GitHub Actions anropar Render via stagingens Deploy Hook.
+8. Render hämtar och startar Docker-imagen i staging.
+9. CD-workflowen verifierar staging genom `/version.txt`.
+10. Efter godkänd staging initieras deployment till produktion.
+11. Render hämtar samma SHA-taggade image och startar den i produktion.
+12. Produktionsversionen verifieras om `PROD_URL` är konfigurerad.
 
-Staging används före produktion enligt projektets deployment-konfiguration.
+Detta säkerställer att staging och produktion använder samma byggda image för den aktuella committen.
 
-## Begränsningar
+## 8. Beslut
 
-Diagrammet visar systemets huvudsakliga komponenter och kommunikationsvägar.
-
-Det beskriver den avsedda arkitekturen, men exakta detaljer om följande ska verifieras mot den faktiska implementationen:
-
-- Tokenhantering och autentiseringsflöde.
-- Cookie-attribut, exempelvis `HttpOnly`, `Secure` och `SameSite`.
-- API-rutter och vidarebefordran av headers.
-- Hantering och lagring av API-nycklar.
-- Nginx-konfiguration och säkerhetsheaders.
-- GitHub Actions-workflow och deployment-hook.
-- Render-konfiguration och miljöhantering.
-
-Dokumentationen ska hållas uppdaterad när implementationen eller deployment-konfigurationen förändras.
-
-## Beslut
-
-Arkitekturens viktigaste beslut dokumenteras i
-[`docs/decisions/`](decisions/README.md).
+Arkitekturens viktigaste tekniska beslut dokumenteras i [`docs/decisions/`](decisions/README.md).
 
 - [Hosting](decisions/hosting.md) – Render, Docker, GHCR och deployment.
 - [Tokenlagring](decisions/tokenlagring.md) – access token och refresh-cookie.
 - [Feature flags](decisions/feature-flags.md) – runtime-konfiguration för Norge.
-- [Rendering](decisions/rendering.md) – varför vi behåller Vue SPA med Vite.
-- [E2E-tester](decisions/testing.md) – varför vi använder Playwright.
-- [Tillgänglighetsanalys](decisions/tillganglighetsanalys.md) – riskområden, åtgärdsplan och verifiering av tillgänglighet.
+- [Rendering](decisions/rendering.md) – beslut om Vue SPA med Vite.
+- [E2E-verktyg](decisions/e2e-verktyg.md) – valet av Playwright.
+
+Tillgänglighetsdokumentationen finns separat:
+
+- [Tillgänglighetsdokumentation](accessibility.md)
+- [Tillgänglighetsanalys och åtgärdsplan](tillganglighetsanalys.md)
+
+## 9. Relaterad dokumentation
+
+- [CI/CD-pipeline](pipeline.md)
+- [Containerlösning](containers.md)
+- [Deployment](deploy.md)
+- [Kända problem](known-issues.md)
+- [Testning](testing.md)
+- [Säkerhet](security.md)
+- [Teknisk skuld](debt.md)
+- [Skalning](scaling.md)
+- [Hållbarhet](sustainability.md)
