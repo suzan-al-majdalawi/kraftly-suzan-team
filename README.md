@@ -66,6 +66,40 @@ cp .env.example .env
 cp .env.example mock-api/.env
 ```
 
+## Kom igång
+
+### Förutsättningar
+
+- Node.js 24
+- npm
+- Docker Desktop om du vill använda Docker
+
+Alla lokala körsätt kräver en `.env`-fil med lokala värden. Den ska aldrig committas till Git.
+
+Kopiera exempelkonfigurationen:
+
+```bash
+cp .env.example .env
+```
+
+Om mock-API:t använder en separat `.env`-fil:
+
+```bash
+cp .env.example mock-api/.env
+```
+
+### Skapa JWT_SECRET
+
+Generera en slumpmässig hemlighet:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Kopiera resultatet till `JWT_SECRET` i `.env`.
+
+Använd ett separat slumpmässigt värde för varje miljö. Lägg aldrig hemligheter i Git eller frontendkod.
+
 ### Med Docker (rekommenderat)
 
 Starta applikationen från projektets rotkatalog:
@@ -106,7 +140,7 @@ npm run dev
 
 Öppna den adress som Vite visar, vanligtvis [http://localhost:5173](http://localhost:5173).
 
-Använd `npm ci` när du vill installera exakt de beroenden som anges i `package-lock.json`.
+Använd `npm ci` installerar beroendena enligt `package-lock.json` och används för att få en reproducerbar installation. Om du ändrar beroenden lokalt kan du använda `npm install`.
 
 ## Inloggning
 
@@ -176,7 +210,7 @@ Automatiserade tillgänglighetstester ersätter inte en manuell granskning.
 
 ## Prestanda och hållbarhet – M7
 
-Prestandamätningar och optimeringar dokumenteras i `docs/performance.md`.
+Prestandamätningar och optimeringar dokumenteras i [performance](docs/performance.md).
 
 CO₂-uppskattningen kan köras med:
 
