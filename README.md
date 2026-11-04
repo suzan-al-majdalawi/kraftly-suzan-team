@@ -15,7 +15,7 @@ Projektet använder bland annat:
 - Vue 3, Vite, Vue Router och Pinia
 - Nginx för frontend och API-proxy
 - Kraftlys API v2 och ett mock-API för lokal utveckling
-- GitHub Actions för automatiserade kontroller
+- GitHub Actions för automatiserade kontroller och deployment
 - Docker och GitHub Container Registry (GHCR)
 - Render för staging och produktion
 - Vitest, Vue Test Utils, axe, Playwright och Storybook
@@ -59,24 +59,7 @@ Följande bilder visar applikationens huvudsakliga vyer.
 - npm
 - Docker Desktop om du vill använda Docker
 
-Alla lokala körsätt kräver en `.env`-fil med lokala värden. Den ska aldrig committas till Git.
-
-Kopiera exempelkonfigurationen:
-
-```bash
-cp .env.example .env
-cp .env.example mock-api/.env
-```
-
-## Kom igång
-
-### Förutsättningar
-
-- Node.js 24
-- npm
-- Docker Desktop om du vill använda Docker
-
-Alla lokala körsätt kräver en `.env`-fil med lokala värden. Den ska aldrig committas till Git.
+Lokala körsätt kan kräva miljövariabler. Skapa lokala `.env`-filer utifrån projektets exempelkonfiguration. Dessa filer ska aldrig committas till Git.
 
 Kopiera exempelkonfigurationen:
 
@@ -90,6 +73,8 @@ Om mock-API:t använder en separat `.env`-fil:
 cp .env.example mock-api/.env
 ```
 
+Kontrollera att exempelkonfigurationen innehåller de variabler som respektive tjänst behöver.
+
 ### Skapa JWT_SECRET
 
 Generera en slumpmässig hemlighet:
@@ -98,12 +83,13 @@ Generera en slumpmässig hemlighet:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Kopiera resultatet till `JWT_SECRET` i `.env`.
+Kopiera resultatet till `JWT_SECRET` i mock-API:ts `.env`, om variabeln används där.
 
 Använd ett separat slumpmässigt värde för varje miljö. Lägg aldrig hemligheter i Git eller frontendkod.
 
 ### Med Docker (rekommenderat)
 
+tips: Öppna Docker Desktop först och sen
 Starta applikationen från projektets rotkatalog:
 
 ```bash
@@ -112,7 +98,9 @@ docker compose up --build
 
 Frontend nås på [http://localhost:8080](http://localhost:8080).
 
-API-förfrågningar går via frontendens `/api`. Stoppa containrarna med:
+API-förfrågningar går via frontendens `/api`.
+
+Stoppa containrarna med:
 
 ```bash
 docker compose down
@@ -123,7 +111,7 @@ docker compose down
 Installera beroenden:
 
 ```bash
-npm install
+npm ci
 ```
 
 Starta mock-API:t i en terminal:
@@ -142,7 +130,7 @@ npm run dev
 
 Öppna den adress som Vite visar, vanligtvis [http://localhost:5173](http://localhost:5173).
 
-Använd `npm ci` installerar beroendena enligt `package-lock.json` och används för att få en reproducerbar installation. Om du ändrar beroenden lokalt kan du använda `npm install`.
+`npm ci` installerar beroendena enligt `package-lock.json` och används för en reproducerbar installation. Om du ändrar beroenden lokalt kan du använda `npm install`.
 
 ## Inloggning
 
@@ -152,6 +140,7 @@ Applikationen använder autentisering via Kraftlys API v2.
 - Refresh token hanteras via en `HttpOnly`-cookie.
 - Sessionen kan återställas via tokenförnyelse.
 - Vue Router skyddar sidor som kräver inloggning.
+- Utloggning rensar access token från minnet.
 
 Lokala testkonton:
 
@@ -164,7 +153,7 @@ Använd endast testkonton i avsedda testmiljöer.
 
 Mer information finns i [säkerhetsdokumentationen](docs/security.md) och [beslutet om tokenlagring](docs/decisions/tokenlagring.md).
 
-## Kvalitet
+## Kvalitet och tester
 
 Kör relevanta tester innan du skickar in en pull request:
 
@@ -173,6 +162,12 @@ npm run test:run
 npm run test:a11y
 npm run lint
 npm run build
+```
+
+API-tjänstens tester kan köras separat:
+
+```bash
+npx vitest run src/services/api.test.js
 ```
 
 Playwright kräver att Chromium är installerat:
@@ -239,19 +234,22 @@ Applikationen levereras som en Vue-baserad SPA. Nginx levererar frontendfiler oc
 
 ```mermaid
 flowchart LR
-    Browser["Webbläsare<br/>Vue 3 SPA"]
+    Browser["Webbläsare – Vue 3 SPA"]
     Nginx["Nginx"]
     API["Kraftlys API v2"]
     Mock["Lokalt mock-API"]
-    Actions["GitHub Actions"]
-    GHCR["GHCR"]
-    Render["Render"]
+    CD["GitHub Actions – cd.yml"]
+    GHCR["GitHub Container Registry – GHCR"]
+    Staging["Render – Staging"]
+    Production["Render – Produktion"]
 
     Browser --> Nginx
     Nginx --> API
     Browser -.->|"Utvecklingsläge"| Mock
-    Actions --> GHCR
-    GHCR --> Render
+
+    CD -->|"Bygger och publicerar image"| GHCR
+    GHCR -->|"Samma SHA-taggade image"| Staging
+    Staging -->|"Verifierad version"| Production
 ```
 
 API-nycklar ska hanteras på serversidan och får inte exponeras i publika frontendfiler.
@@ -265,13 +263,27 @@ Mer information:
 
 ## CI/CD och deployment
 
-GitHub Actions används för automatiserade kontroller och byggen. Docker-images publiceras till GHCR och används vid deployment.
+GitHub Actions används för automatiserade kontroller, byggen och deployment.
 
-Det planerade flödet är:
+Workflow-filen `.github/workflows/ci.yml` kör automatiserade kontroller. Workflow-filen `.github/workflows/cd.yml` hanterar bygg- och deploymentflödet.
 
-`GitHub → GitHub Actions → GHCR → Render`
+Flödet i `cd.yml` är:
 
-Att en image har publicerats innebär inte automatiskt att rätt version körs i miljön. Kontrollera commit-SHA och driftsatt version.
+1. Automatiserade tester, tillgänglighetskontroller och build körs.
+2. Docker-imagen byggs och publiceras till GHCR med en SHA-tagg.
+3. Imagen deployas först till staging.
+4. Staging verifieras mot `/version.txt`.
+5. Samma SHA-taggade image deployas därefter till produktion.
+
+```text
+GitHub
+  → GitHub Actions
+  → GHCR
+  → Render Staging
+  → Render Produktion
+```
+
+Att en image har publicerats innebär inte automatiskt att rätt version körs i miljön. Kontrollera därför commit-SHA och driftsatt version.
 
 Se [pipeline](docs/pipeline.md) och [deployment](docs/deploy.md) för mer information.
 
@@ -308,6 +320,7 @@ Exempel på commit-meddelanden:
 ```bash
 git commit -m "feat: add customer dashboard"
 git commit -m "fix: resolve login issue"
+git commit -m "test: add authentication tests"
 git commit -m "docs: update README"
 git commit -m "ci: add Storybook build"
 ```
@@ -319,10 +332,11 @@ git commit -m "ci: add Storybook build"
 - Använd testuppgifter endast i avsedda testmiljöer.
 - Kontrollera att API-nycklar hanteras på serversidan.
 - Exponera inte hemligheter i frontendfiler eller `config.js`.
+- Committa aldrig lokala `.env`-filer.
 
 ## Projektinformation
 
 **Projekt:** Kraftly – Mina sidor  
 **Leverantör:** Webbmakarna AB  
 **Ursprungligt leveransdatum:** 2026-06-30  
-**Senast uppdaterad:** 2026-11-02
+**Senast uppdaterad:** 2026-11-03
