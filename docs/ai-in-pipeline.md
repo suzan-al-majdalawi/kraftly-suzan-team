@@ -12,6 +12,13 @@ Workflowen `.github/workflows/ai-review.yml` skickar en diff till `scripts/ai-re
 
 API-nyckeln läses från miljövariabeln `ANTHROPIC_API_KEY`. Nyckeln ska hanteras som en hemlighet och får inte sparas i repot eller visas i loggar.
 
+AI-granskningen kan hoppas över om:
+
+- API-nyckeln saknas.
+- Pull requesten inte innehåller ändringar under `src/`.
+
+Om AI-tjänsten misslyckas ska övriga CI-kontroller kunna fortsätta.
+
 ## Lokalt test och resultat
 
 Jag testade skriptet lokalt med följande kommando:
@@ -22,43 +29,161 @@ node scripts/ai-review.mjs diff.patch
 
 Miljövariabeln `ANTHROPIC_API_KEY` var inställd, men API-anropet misslyckades med HTTP 401 och meddelandet `invalid x-api-key`.
 
-**Resultat:** AI-granskningen kunde inte genomföras. Testet visar att skriptet nådde autentiseringssteget, men det bekräftar inte att AI-granskningen fungerar korrekt från början till slut.
+**Resultat:** Det lokala testet kunde inte genomföras eftersom API-nyckeln inte godkändes. Testet visar att skriptet nådde autentiseringssteget, men bekräftar inte att ett lokalt test med en giltig API-nyckel fungerar.
 
-API-nyckeln behöver kontrolleras innan ett nytt test kan göras. Därefter behöver skriptet testas igen med en giltig nyckel.
+## Utvärdering av pull requests
 
-Skriptet är avsett att hantera fel från AI-tjänsten utan att göra AI-granskningen till ett obligatoriskt CI-krav. Vanlig kodgranskning och övriga CI-kontroller ska kunna fortsätta även om AI-tjänsten inte är tillgänglig.
+Följande pull requests användes för att undersöka AI-granskningen:
 
-## Utvärdering av tre pull requests
-
-Följande tre pull requests användes för att undersöka AI-granskningen.
-
-| Pull request                                                               | AI-kommentar                                                                   | Bedömning                       | Motivering                                                                                                                                                                                                                                                    |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [PR #29](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/29) | Granskningen hoppades över eftersom API-nyckeln saknades.                      | Osäker – ingen bedömning möjlig | Ingen kodanalys genomfördes. PR:en kan därför inte användas för att bedöma AI-granskarens träffsäkerhet.                                                                                                                                                      |
-| [PR #30](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/30) | Kommentarer om tillgänglighet för statuschip och hantering av fakturastatusar. | Trolig träff                    | AI:n identifierade konkreta risker inom tillgänglighet och fakturalogik. Kommentarerna behöver jämföras med koden för att bekräftas. Efter en senare ändring svarade AI:n ”Inget att anmärka på”.                                                             |
-| [PR #31](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/31) | Kommentarer om `KAlert`, live-regioner, meddelanden och fokus vid stängning.   | Trolig träff                    | AI:n identifierade möjliga tillgänglighetsproblem för skärmläsare och tangentbordsanvändare. Kommentarerna behöver verifieras mot koden. Vissa andra körningar hoppades över på grund av saknad API-nyckel eller för att inga ändringar gjordes under `src/`. |
+| Pull request                                                               | AI-kommentar                                                               | Bedömning             | Motivering                                                                                                                                                                  |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [PR #29](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/29) | Granskningen hoppades över eftersom API-nyckeln saknades.                  | Osäker                | Ingen AI-analys genomfördes.                                                                                                                                                |
+| [PR #30](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/30) | Kommentarer om StatusChip, tillgänglighet och fakturastatusar.             | Träffar               | AI:n identifierade konkreta risker i statusvisning och fakturalogik. Efterföljande ändringar gjordes och en senare granskning gav resultatet "Inget att anmärka på".        |
+| [PR #31](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/31) | Kommentarer om KAlert, live-regioner, meddelanden och fokus vid stängning. | Träffar               | AI:n identifierade flera relevanta tillgänglighetsproblem. Efterföljande commits behandlade flera av förslagen. En senare granskning gav resultatet "Inget att anmärka på". |
+| [PR #32](https://github.com/suzan-al-majdalawi/kraftly-suzan-team/pull/32) | Kommentarer om autentisering, användardata och `fetchMessages`.            | Både träffar och miss | Flera förslag beskrev verkliga risker, men påståendet om `fetchMessages` stämde inte med användningen i applikationskoden.                                                  |
 
 ### Vad räknas som en träff eller miss?
 
-En **träff** är en kommentar som pekar på ett verkligt och relevant problem i koden.
+- **Träff:** En kommentar som pekar på ett verkligt och relevant problem i koden.
+- **Miss:** En kommentar som är felaktig, saknar stöd i koden eller föreslår en onödig ändring.
+- **Osäker:** Underlaget räcker inte för att avgöra om kommentaren är korrekt.
 
-En **miss** är en kommentar som är felaktig, saknar tillräckligt stöd i koden eller föreslår en onödig ändring.
+AI-förslag kontrolleras mot koden innan de accepteras.
 
-**Osäker** används när underlaget inte räcker för att avgöra om kommentaren är korrekt.
+## PR #30 – StatusChip för fakturastatus
 
-Vi dokumenterar minst ett exempel på en träff och ett exempel på en miss, med korta citat från AI-kommentaren och en förklaring av bedömningen.
+AI-granskningen identifierade tre förbättringsområden:
 
-### Sammanfattning av utvärderingen
+1. `StatusChip.vue`: användningen av `role="status"` på varje chip kunde orsaka onödiga uppläsningar i en fakturatabell.
+2. `StatusChip.vue`: den visuella modifieringen skilde inte tydligt mellan obetalda och förfallna fakturor.
+3. `invoice.js`: okända eller saknade statusvärden riskerade att klassificeras som förfallna.
 
-PR #29 gav inget underlag eftersom AI-granskningen inte kunde köras. PR #30 och PR #31 gav däremot konkreta kommentarer om möjliga problem inom tillgänglighet och funktionalitet.
+**Bedömning: Träffar.**
 
-Kommentarerna i PR #30 och PR #31 bedöms preliminärt som träffar, men måste kontrolleras mot koden innan de kan räknas som bekräftade. Hittills har vi inte dokumenterat någon säker miss.
+Förslagen pekade på relevanta risker inom tillgänglighet och fakturalogik. Efter granskningen uppdaterades fakturahanteringen i commit `4c5cf7f` med meddelandet "Update invoice status handling and remove duplicate component".
 
-Utvärderingen visar att AI-granskningen kan ge användbara förslag, men att resultatet påverkas av att API-nyckeln saknas vid vissa körningar. Vi behöver fortsätta testa med en fungerande API-nyckel och dokumentera både träffar och missar innan vi drar en slutlig slutsats om kvaliteten.
+En senare AI-granskning gav resultatet "Inget att anmärka på". PR #30 mergades till `main` och samtliga 10 checks passerade.
+
+## PR #31 – Tillgänglighet för fakturameddelanden
+
+AI-granskningen identifierade flera möjliga problem:
+
+1. `KAlert.vue`: `role="alert"` användes för alla meddelandetyper, även information och success.
+2. Live-regionens innehåll behövde hanteras så att skärmläsare kunde läsa upp uppdateringar på ett tillförlitligt sätt.
+3. `InvoicesView.vue`: meddelanden behövde kunna stängas och visas igen på ett korrekt sätt.
+4. Fokus behövde återställas när ett meddelande stängdes.
+5. `activeInvoiceId` behövde återställas när meddelandet stängdes.
+6. `KButton.vue`: fokusfärgen behövde kontrolleras för tillräcklig kontrast mellan bakgrund och text.
+
+**Bedömning: Relevanta träffar.**
+
+Flera efterföljande commits visar att förslagen användes vid förbättringar, bland annat:
+
+- `f73f0fc` – Improve KAlert accessibility and dismissal behavior.
+- `299a77a` – Lägg skärmbild och test.
+- `3e1cab8` – Address AI review feedback for invoice accessibility.
+
+En senare granskning gav resultatet "Inget att anmärka på". PR #31 mergades till `main` och samtliga 10 checks passerade.
+
+Under PR #31 förekom också körningar där AI-granskningen hoppades över på grund av saknad API-nyckel eller för att inga ändringar fanns under `src/`. Det förekom även ett svar där modellen inte returnerade någon text. Dessa körningar räknas inte som lyckade AI-analyser.
+
+## PR #32 – Utvärdering av AI-granskning: träffar och missar
+
+I PR #32 granskade AI:n flera delar av autentiseringsflödet och hanteringen av användardata. Förslagen jämfördes med koden.
+
+### 1. Race condition vid autentisering
+
+**AI:ns förslag:**
+
+AI:n identifierade att routern och `auth.restore()` kunde starta flera refresh-anrop samtidigt när applikationen startade.
+
+**Bedömning: Träff – accepterad.**
+
+Jag hade själv observerat problemet. Ibland kördes två refresh-anrop samtidigt, där det ena fick HTTP 401 och det andra HTTP 200. Trots att ett anrop lyckades kunde användaren behöva logga in igen efter en sidomladdning.
+
+Förslaget beskrev ett verkligt problem.
+
+**Åtgärd:**
+
+Jag arbetade med att låta samtidiga anrop dela på samma pågående Promise för sessionsåterställning.
+
+### 2. Samtidiga anrop till `restore()`
+
+**AI:ns förslag:**
+
+AI:n påpekade att `restore()` kunde returnera autentiseringsstatus innan det första refresh-anropet hade slutförts. Den föreslog att efterföljande anrop skulle invänta samma Promise.
+
+**Bedömning: Träff – accepterad.**
+
+Detta var relevant eftersom flera delar av applikationen kan behöva återställa sessionen samtidigt. En gemensam Promise gör att anropen väntar på samma resultat.
+
+**Åtgärd:**
+
+Sessionsåterställningen hanterades med en gemensam Promise och kontroller av aktuell session.
+
+### 3. AI:ns påstående om borttagna `fetchMessages`
+
+**AI:ns förslag:**
+
+AI:n påstod att funktionen `fetchMessages` hade tagits bort utan ersättning och att komponenter som importerade funktionen därför kunde sluta fungera.
+
+**Bedömning: Miss – avvisad.**
+
+Jag kontrollerade koden med `git grep` efter `fetchMessages`, `message` och `messages`. Jag hittade inga importer eller användningar av `fetchMessages` i applikationskoden.
+
+AI:n drog därför slutsatsen att funktionen fortfarande behövdes utan att först verifiera om den faktiskt användes.
+
+Detta är ett konkret exempel på en felaktig AI-granskning. Att återinföra en funktion som inte används hade inte varit en nödvändig lösning.
+
+**Åtgärd:**
+
+Jag avvisade förslaget efter att ha kontrollerat kodbasen.
+
+### 4. Osäker hantering av användardata från API:et
+
+**AI:ns förslag:**
+
+AI:n identifierade en risk med att slå ihop API-svaret direkt med användarobjektet. Om svaret innehöll ett nästlat `user`-objekt eller text i stället för ett objekt kunde användardata hanteras felaktigt.
+
+**Bedömning: Träff – accepterad.**
+
+Förslaget beskrev en relevant risk i hanteringen av olika API-svarsformat.
+
+**Åtgärd:**
+
+Jag arbetade med normalisering och kontroll av API-svaret innan användarens data uppdateras i Pinia-storen.
+
+### 5. Oanvänd import av `NorwayNotice`
+
+**AI:ns förslag:**
+
+AI:n påpekade att `NorwayNotice` importerades utan att användas i Dashboard-vyn.
+
+**Bedömning: Behöver verifieras mot den aktuella versionen.**
+
+En oanvänd import kan öka bundle-storleken i onödan. Förslaget måste kontrolleras mot den aktuella mallen och den exakta versionen av filen vid granskningstillfället.
+
+**Åtgärd:**
+
+Kontrollera om komponenten används i mallen. Om den används ska importen behållas; annars ska den tas bort.
+
+### Sammanfattning av PR #32
+
+| AI-förslag                                           | Bedömning          |
+| ---------------------------------------------------- | ------------------ |
+| Samtidiga refresh-anrop vid applikationsstart        | Träff              |
+| `restore()` returnerar innan återställningen är klar | Träff              |
+| `fetchMessages` saknas och behövs                    | Miss               |
+| Osäker hantering av API-svar i användarstoren        | Träff              |
+| Oanvänd import av `NorwayNotice`                     | Behöver verifieras |
+
+PR #32 visar att AI-granskningen kan identifiera verkliga problem, särskilt i autentiseringsflödet och hanteringen av användardata. Den visar också att AI:n kan göra felaktiga antaganden om funktioner som inte används i projektet.
 
 ## Vår regel för att lita på AI-granskningen
 
-AI-granskningen är ett stöd, inte ett beslut om att godkänna en pull request. Vi verifierar varje kommentar mot koden innan vi ändrar något. Vi prioriterar konkreta och reproducerbara problem framför spekulativa förslag.
+AI-granskningen är ett stöd, inte ett beslut om att godkänna en pull request.
+
+Vi verifierar varje kommentar mot koden innan vi ändrar något. Vi prioriterar konkreta och reproducerbara problem framför spekulativa förslag.
 
 När vi inte håller med kontrollerar vi sammanhanget och dokumenterar varför kommentaren är felaktig eller inte relevant. Vi accepterar inte en ändring enbart för att AI:n föreslår den, och vi avfärdar inte en kommentar utan att undersöka den.
 
@@ -67,65 +192,22 @@ Den slutliga bedömningen görs av en mänsklig granskare. AI-granskningen får 
 ## Status och återstående arbete
 
 - [x] Dokumentera syftet med AI-granskningen.
+- [x] Dokumentera hur workflowen och `scripts/ai-review.mjs` fungerar.
 - [x] Dokumentera det lokala testet och HTTP 401-felet.
-- [x] Samla tre pull requests för utvärdering.
-- [x] Dokumentera AI-granskningens resultat för PR #29, PR #30 och PR #31.
-- [x] Kontrollera och korrigera API-nyckeln.
-- [x] Testa AI-granskningen igen med en giltig API-nyckel.
-- [x] Verifiera kommentarerna från PR #30 och PR #31 mot koden.
-- [x] Dokumentera minst en bekräftad träff och en bekräftad miss.
-- [x] Kontrollera att workflowen publicerar kommentarer på pull requests.
+- [x] Samla PR #29, PR #30, PR #31 och PR #32 för utvärdering.
+- [x] Dokumentera relevanta AI-förslag från PR #30 och PR #31.
+- [x] Dokumentera flera exempel på träffar.
+- [x] Dokumentera ett konkret exempel på en miss från PR #32.
+- [x] Visa att AI-granskningen har publicerat kommentarer på pull requests.
+- [x] Dokumentera att vissa körningar hoppades över på grund av saknad API-nyckel eller avsaknad av ändringar under `src/`.
+- [ ] Genomföra och dokumentera ett separat lokalt test med en giltig API-nyckel, utan HTTP 401.
+- [x] Verifiera att workflowen har publicerat AI-kommentarer på pull requests vid lyckade körningar.
+- [x] Jämföra AI-kommentarerna från PR #30 och PR #31 med efterföljande kodändringar.
 
-**Nuvarande status:** AI-granskningen har testats på tre pull requests, men är ännu inte fullt verifierad. PR #30 och PR #31 innehåller användbara förslag som behöver kontrolleras mot koden. Ett nytt test med en giltig API-nyckel behövs för att verifiera hela flödet.
+**Nuvarande status:**
 
-## PR #32 – Fel och lösningar
+AI-granskningen har utvärderats med hjälp av PR #29, PR #30, PR #31 och PR #32. Utvärderingen innehåller både exempel på relevanta AI-förslag och ett konkret exempel där AI:n hade fel.
 
-Vid arbetet med PR #32 genomfördes en granskning av autentiseringsflödet och hanteringen av användardata. Granskningen visade flera problem som kunde påverka säkerheten och stabiliteten i applikationen.
+GitHub Actions har publicerat AI-kommentarer på pull requests vid lyckade körningar. Det finns också dokumenterade körningar som hoppades över på grund av saknad API-nyckel, avsaknad av ändringar under `src/` eller ett tomt modellsvar.
 
-### 1. Problem med normalisering av användardata
-
-**Fel:**  
-API:et kunde returnera användardata i olika format. Om svaret innehöll ett objekt med egenskapen `user` kunde informationen hamna på fel nivå i Pinia-storen. Om svaret inte var ett giltigt objekt kunde data dessutom hanteras felaktigt.
-
-**Lösning:**  
-En funktion för normalisering av API-svar infördes i `user.js`. Den kontrollerar att svaret har rätt format och hanterar både direkta användarobjekt och svar som innehåller ett `user`-objekt. Detta gör hanteringen av användardata mer förutsägbar.
-
-### 2. Problem med samtidiga Refresh-anrop
-
-**Fel:**  
-Flera samtidiga anrop till `refresh()` kunde försöka återställa sessionen samtidigt. Eftersom refresh-token roteras på servern kunde detta orsaka konflikter och misslyckad autentisering.
-
-**Lösning:**  
-En gemensam Promise infördes i `api.js` för att förhindra att flera Refresh-anrop körs samtidigt. På så sätt kan samtidiga anrop använda samma pågående återställning i stället för att starta nya anrop.
-
-### 3. Risk för att en gammal Refresh återställer sessionen efter utloggning
-
-**Fel:**  
-En Refresh-begäran som startats före utloggningen kunde slutföras efter att användaren loggat ut. Det fanns då en risk att ett gammalt svar sparade en access-token igen och återställde en session som skulle vara avslutad.
-
-**Lösning:**  
-En generationskontroll infördes i API-lagret. När utloggningen startar ändras generationen. En äldre Refresh-operation får då inte spara sin access-token om den tillhör en tidigare generation. Utloggningen väntar även in en pågående Refresh-operation innan logout-anropet skickas.
-
-### 4. Skydd mot föråldrad sessionsåterställning i auth-storen
-
-**Fel:**  
-Även om API-lagret skyddades behövde auth-storen kunna hantera situationer där en sessionsåterställning pågår samtidigt som användaren loggar in eller ut. Annars kunde ett äldre resultat påverka aktuell autentiseringsstatus.
-
-**Lösning:**  
-`sessionVersion` behölls i `auth.js`. Den används för att kontrollera att resultatet från en återställning fortfarande tillhör den aktuella sessionen innan användarens tillstånd uppdateras.
-
-### 5. Test av samtidiga sessionsåterställningar
-
-**Fel:**  
-Det saknades ett tydligt test som säkerställde att flera samtidiga anrop till `restore()` inte startade flera separata återställningar.
-
-**Lösning:**  
-Ett test lades till för att kontrollera att samtidiga anrop till `restore()` delar på samma pågående Promise och att sessionen bara återställs en gång.
-
-## Resultat
-
-Ändringarna i PR #32 syftar till att göra autentiseringsflödet mer robust och minska risken för problem vid samtidiga anrop, utloggning och återställning av sessionen.
-
-De förbättrar även valideringen och hanteringen av användardata från API:et. Lösningarna kompletterar varandra genom att skydda både API-lagret och auth-storen.
-
-Ändringarna behöver verifieras med projektets tester och byggprocess innan de kan betraktas som helt färdigtestade.
+Det lokala testet med en giltig API-nyckel behöver fortfarande genomföras separat för att även bekräfta den lokala körningen utan autentiseringsfel.
