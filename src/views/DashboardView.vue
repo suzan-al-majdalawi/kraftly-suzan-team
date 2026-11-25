@@ -55,13 +55,30 @@
 
     <!-- Information för Norge -->
     <NorwayNotice />
+
+    <section class="card">
+      <h2>Spartips just nu</h2>
+      <p>
+        Elpriset är som högst mellan 07–09 och 17–20. Flytta tvätt och
+        diskmaskin till natten så kan du sänka din kostnad med upp till 15 %.
+      </p>
+      <div class="btn" style="margin-top: 12px" @click="showTips">
+        Fler spartips
+      </div>
+    </section>
   </main>
 </template>
 
 <script setup>
-import { computed, onMounted, defineAsyncComponent } from "vue";
+import {
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  defineAsyncComponent,
+} from "vue";
 import { useUserStore } from "../stores/user";
 import { useConsumptionStore } from "../stores/consumption";
+import { debounce } from "../utils/debounce.js";
 import NorwayNotice from "../components/NorwayNotice.vue";
 
 const ConsumptionChart = defineAsyncComponent(
@@ -70,6 +87,10 @@ const ConsumptionChart = defineAsyncComponent(
 
 const userStore = useUserStore();
 const consumptionStore = useConsumptionStore();
+
+const onResize = debounce(() => {
+  console.log("resize", window.innerWidth);
+}, 300);
 
 const latestMonth = computed(() => {
   const data = consumptionStore.data;
@@ -80,9 +101,18 @@ const currentPrice = computed(() =>
   consumptionStore.data ? consumptionStore.data.pricePerKwh : "–",
 );
 
+const showTips = () => {
+  alert("Fler spartips kommer snart!");
+};
+
 onMounted(() => {
   userStore.load();
   consumptionStore.load();
+  window.addEventListener("resize", onResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", onResize);
 });
 </script>
 
